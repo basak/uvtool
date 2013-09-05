@@ -1,3 +1,10 @@
+ubuntu-cloud-utils (0.1~alpha2) precise; urgency=low
+
+  * Fix mktemp directory location
+  * Fix memory allocation for hosts with low memory
+
+ -- Robie Basak <robie.basak@canonical.com>  Thu, 05 Sep 2013 16:41:25 +0100
+
 ubuntu-cloud-utils (0.1~alpha1) precise; urgency=low
 
   * Initial release.
