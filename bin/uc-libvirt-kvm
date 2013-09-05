@@ -88,7 +88,7 @@ def create_ds_image(temp_dir, hostname, user_data_fobj):
 def create_ds_volume(new_volume_name, hostname, user_data_fobj):
     """Create a new libvirt cloud-init datasource volume."""
 
-    temp_dir = tempfile.mkdtemp(prefix=__file__)
+    temp_dir = tempfile.mkdtemp(prefix='uc-libvirt-kvm-')
     try:
         create_ds_image(temp_dir, hostname, user_data_fobj)
         with open(os.path.join(temp_dir, 'ds.img'), 'rb') as f:
