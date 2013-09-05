@@ -1,5 +1,4 @@
 <domain type='kvm'>
-  <memory>2097152</memory>
   <vcpu>1</vcpu>
   <os>
     <type>hvm</type>

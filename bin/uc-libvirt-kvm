@@ -133,6 +133,9 @@ def compose_domain_xml(name, volumes, memory=512, unsafe_caching=False,
     etree.strip_elements(domain, 'currentMemory')
     etree.SubElement(domain, 'currentMemory').text = str(memory * 1024)
 
+    etree.strip_elements(domain, 'memory')
+    etree.SubElement(domain, 'memory').text = str(memory * 1024)
+
     devices = domain.find('devices')
     etree.strip_elements(devices, 'disk')
     for disk_device, vol in zip(['vda', 'vdb'], volumes):
