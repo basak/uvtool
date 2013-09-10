@@ -47,7 +47,7 @@ import ubuntucloud.libvirt.simplestreams
 DEFAULT_TEMPLATE = '/usr/share/ubuntucloud/libvirt/template.xml'
 
 
-def create_default_user_data(fobj, hostname):
+def create_default_user_data(fobj, args):
     """Write some sensible default cloud-init user-data to the given file
     object.
 
@@ -70,7 +70,7 @@ def create_default_user_data(fobj, hostname):
     fobj.write("#cloud-config\n")
     fobj.write(yaml.dump({
         b'ssh_authorized_keys': ssh_authorized_keys,
-        b'hostname': hostname.encode('ascii'),
+        b'hostname': args.hostname.encode('ascii'),
         b'manage_etc_hosts': b'localhost',
         b'packages': b'avahi-daemon',
         }))
@@ -242,7 +242,7 @@ def main_create_get_user_data_fobj(args):
         user_data_fobj = args.user_data
     else:
         user_data_fobj = StringIO.StringIO()
-        create_default_user_data(user_data_fobj, args.hostname)
+        create_default_user_data(user_data_fobj, args)
         user_data_fobj.seek(0)
     return user_data_fobj
 
