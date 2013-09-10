@@ -1,0 +1,26 @@
+#!/bin/sh
+set -e
+
+stop_pool() {
+	if virsh -q pool-list|grep -q '^ubuntu-cloud\s'; then
+		# In the postrm virsh may be gone or deconfigured, so ignore
+		# failures gracefully.
+		virsh -q pool-destroy ubuntu-cloud || true
+	fi
+}
+
+undefine_pool() {
+	if virsh -q pool-list --all|grep -q '^ubuntu-cloud\s'; then
+		# In the postrm virsh may be gone or deconfigured, so ignore
+		# failures gracefully.
+		virsh -q pool-undefine ubuntu-cloud || true
+	fi
+}
+
+if [ "$1" = purge ]; then
+	stop_pool
+	undefine_pool
+	rm -Rf /var/lib/ubuntu-cloud/libvirt
+fi
+
+#DEBHELPER#

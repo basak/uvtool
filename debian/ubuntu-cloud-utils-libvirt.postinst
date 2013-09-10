@@ -1,0 +1,35 @@
+#!/bin/sh
+set -e
+
+define_pool() {
+	if ! virsh -q pool-list --all|grep -q '^ubuntu-cloud\s'; then
+		# Idempotently create virsh pool
+		tmpfile=`mktemp`
+		echo "<pool type='dir'><name>ubuntu-cloud</name><target><path>/var/lib/ubuntu-cloud/libvirt/images</path><permissions><mode>0700</mode></permissions></target></pool>" > "$tmpfile"
+		if ! virsh -q pool-define "$tmpfile"; then
+			rm -f "$tmpfile"
+			echo "Failed to define libvirt pool 'ubuntu-cloud'" >&2
+			exit 1
+		fi
+		rm -f "$tmpfile"
+	fi
+}
+
+start_pool() {
+	# Idempotently start virsh pool
+	if ! virsh -q pool-list|grep -q '^ubuntu-cloud\s'; then
+		if ! virsh -q pool-start ubuntu-cloud; then
+			echo "Failed to start libvirt pool 'ubuntu-cloud'" >&2
+			exit 1
+		fi
+	fi
+}
+
+if [ "$1" = configure ]; then
+	mkdir -p /var/lib/ubuntu-cloud/libvirt/images
+	define_pool
+	virsh -q pool-autostart ubuntu-cloud # this is idempotent
+	start_pool
+fi
+
+#DEBHELPER#
