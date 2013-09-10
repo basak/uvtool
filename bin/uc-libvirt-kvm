@@ -67,13 +67,22 @@ def create_default_user_data(fobj, args):
         with f:
             ssh_authorized_keys = [f.read().strip()]
 
-    fobj.write("#cloud-config\n")
-    fobj.write(yaml.dump({
-        b'ssh_authorized_keys': ssh_authorized_keys,
+    data = {
         b'hostname': args.hostname.encode('ascii'),
         b'manage_etc_hosts': b'localhost',
         b'packages': b'avahi-daemon',
-        }))
+    }
+
+    if ssh_authorized_keys:
+        data[b'ssh_authorized_keys'] = ssh_authorized_keys
+
+    if args.password:
+        data[b'password'] = args.password.encode('utf-8')
+        data[b'chpasswd'] = {b'expire': False}
+        data[b'ssh_pwauth'] = True
+
+    fobj.write("#cloud-config\n")
+    fobj.write(yaml.dump(data))
 
 
 def create_ds_image(temp_dir, hostname, user_data_fobj):
@@ -247,7 +256,16 @@ def main_create_get_user_data_fobj(args):
     return user_data_fobj
 
 
-def main_create(args):
+def main_create(parser, args):
+    if args.user_data and args.password:
+        parser.error("--password cannot be used with --user-data.")
+    if args.password:
+        print(
+            "Warning: using --password from the command line is " +
+                "not secure and should be used for debugging only.",
+            file=sys.stderr
+        )
+
     user_data_fobj = main_create_get_user_data_fobj(args)
     create(
         args.hostname, args.filters, user_data_fobj, memory=args.memory,
@@ -255,12 +273,12 @@ def main_create(args):
     )
 
 
-def main_destroy(args):
+def main_destroy(parser, args):
     for h in args.hostname:
         destroy(h)
 
 
-def main_import(args):
+def main_import(parser, args):
     with open(args.filename, 'rb') as f:
         create_volume_from_fobj(args.image_name, f, image_type='qcow2')
 
@@ -275,6 +293,7 @@ def main(args):
     create_subparser.add_argument('--unsafe-caching', action='store_true')
     create_subparser.add_argument(
         '--user-data', type=argparse.FileType('rb'))
+    create_subparser.add_argument('--password')
     create_subparser.add_argument('hostname')
     create_subparser.add_argument(
         'filters', nargs='*', metavar='filter',
@@ -288,7 +307,7 @@ def main(args):
     import_subparser.add_argument('image_name')
     import_subparser.add_argument('filename')
     args = parser.parse_args(args)
-    args.func(args)
+    args.func(parser, args)
 
 
 if __name__ == '__main__':
