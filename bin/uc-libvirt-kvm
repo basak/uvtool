@@ -41,6 +41,7 @@ from lxml import etree
 from lxml.builder import E
 
 from ubuntucloud.libvirt import create_volume_from_fobj
+import ubuntucloud.libvirt.simplestreams
 
 DEFAULT_TEMPLATE = '/usr/share/ubuntucloud/libvirt/template.xml'
 
@@ -162,8 +163,20 @@ def compose_domain_xml(name, volumes, memory=512, unsafe_caching=False,
     return etree.tostring(tree)
 
 
-def create(hostname, base_image, user_data_fobj, memory=512,
+def get_base_image(filters):
+    result = list(ubuntucloud.libvirt.simplestreams.query(filters))
+    if not result:
+        raise RuntimeError(
+            "No images found that match filters %s." % repr(filters))
+    elif len(result) != 1:
+        raise RuntimeError(
+            "Multiple images found that match filters %s." % repr(filters))
+    return result[0]
+
+
+def create(hostname, filters, user_data_fobj, memory=512,
         unsafe_caching=False, template_path=DEFAULT_TEMPLATE):
+    base_image = get_base_image(filters)
     main_vol = create_cow_volume(base_image, "%s" % hostname, 2)
     ds_vol = create_ds_volume("%s-ds" % hostname, hostname, user_data_fobj)
     xml = compose_domain_xml(
@@ -227,7 +240,7 @@ def main_create_get_user_data_fobj(args):
 def main_create(args):
     user_data_fobj = main_create_get_user_data_fobj(args)
     create(
-        args.hostname, args.base_image, user_data_fobj, memory=args.memory,
+        args.hostname, args.filters, user_data_fobj, memory=args.memory,
         unsafe_caching=args.unsafe_caching, template_path=args.template,
     )
 
@@ -254,7 +267,9 @@ def main(args):
         '--user-data', type=argparse.FileType('rb'))
     create_subparser.add_argument('hostname')
     create_subparser.add_argument(
-        'base_image', nargs='?', default=get_lts_series())
+        'filters', nargs='*', metavar='filter',
+        default=["release=%s" % get_lts_series()],
+    )
     destroy_subparser = subparsers.add_parser('destroy')
     destroy_subparser.set_defaults(func=main_destroy)
     destroy_subparser.add_argument('hostname', nargs='+')
