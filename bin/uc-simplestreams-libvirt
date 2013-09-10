@@ -50,9 +50,8 @@ def main_sync(args):
 
 
 def main_query(args):
-    query = ubuntucloud.libvirt.simplestreams.LibvirtQuery(
-        simplestreams.filters.get_filters(args.filters))
-    query.sync_products(None, src=_load_products())
+    result = ubuntucloud.libvirt.simplestreams.query(args.filters)
+    print(*result, sep="\n")
 
 
 def main():

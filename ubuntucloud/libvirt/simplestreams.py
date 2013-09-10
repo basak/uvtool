@@ -115,6 +115,7 @@ class LibvirtQuery(simplestreams.mirrors.BasicMirrorWriter):
     def __init__(self, filters):
         super(LibvirtQuery, self).__init__()
         self.filters = filters
+        self.result = []
 
     def load_products(self, path=None, content_id=None):
         return {'content_id': content_id, 'products': {}}
@@ -125,7 +126,14 @@ class LibvirtQuery(simplestreams.mirrors.BasicMirrorWriter):
 
     def insert_item(self, data, src, target, pedigree, contentsource):
         product_name, version_name, item_name = pedigree
-        print(_encode_libvirt_pool_name(product_name, version_name))
+        self.result.append((product_name, version_name))
+
+
+def query(filter_args):
+    query = LibvirtQuery(simplestreams.filters.get_filters(filter_args))
+    query.sync_products(None, src=_load_products())
+    return (_encode_libvirt_pool_name(product_name, version_name)
+        for product_name, version_name in query.result)
 
 
 class LibvirtMirror(simplestreams.mirrors.BasicMirrorWriter):
