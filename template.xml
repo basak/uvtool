@@ -7,7 +7,8 @@
     <interface type='network'>
       <source network='default'/>
     </interface>
-    <serial type='null'>
+    <serial type='pty'>
+      <source path='/dev/pts/3'/>
       <target port='0'/>
     </serial>
     <graphics type='vnc' autoport='yes' listen='127.0.0.1'>
