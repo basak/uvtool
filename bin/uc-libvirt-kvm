@@ -142,7 +142,7 @@ def create_cow_volume(backing_volume_name, new_volume_name, new_volume_size):
 
 
 def compose_domain_xml(name, volumes, cpu=1, memory=512, unsafe_caching=False,
-        template_path=DEFAULT_TEMPLATE, log_console_output=False):
+        template_path=DEFAULT_TEMPLATE, log_console_output=False, bridge=None):
     tree = etree.parse(template_path)
     domain = tree.getroot()
     assert domain.tag == 'domain'
@@ -184,6 +184,10 @@ def compose_domain_xml(name, volumes, cpu=1, memory=512, unsafe_caching=False,
                 )
             )
 
+    if bridge:
+        etree.strip_elements(devices, 'interface')
+        devices.append(E.interface(E.source(bridge=bridge), type='bridge'))
+
     if log_console_output:
         print(
             "Warning: logging guest console output introduces a DoS " +
@@ -210,7 +214,7 @@ def get_base_image(filters):
 
 def create(hostname, filters, user_data_fobj, memory=512, cpu=1,
         unsafe_caching=False, template_path=DEFAULT_TEMPLATE,
-        log_console_output=False):
+        log_console_output=False, bridge=None):
     base_image = get_base_image(filters)
     undo_volume_creation = []
     try:
@@ -230,6 +234,7 @@ def create(hostname, filters, user_data_fobj, memory=512, cpu=1,
 
         xml = compose_domain_xml(
             hostname, [main_vol, ds_vol],
+            bridge=bridge,
             cpu=cpu,
             log_console_output=log_console_output,
             memory=memory,
@@ -311,6 +316,7 @@ def main_create(parser, args):
     user_data_fobj = main_create_get_user_data_fobj(args)
     create(
         args.hostname, args.filters, user_data_fobj,
+        bridge=args.bridge,
         cpu=args.cpu,
         log_console_output=args.log_console_output,
         memory=args.memory,
@@ -337,6 +343,7 @@ def main(args):
     create_subparser.add_argument('--template', default=DEFAULT_TEMPLATE)
     create_subparser.add_argument('--memory', default=512, type=int)
     create_subparser.add_argument('--cpu', default=1, type=int)
+    create_subparser.add_argument('--bridge')
     create_subparser.add_argument('--unsafe-caching', action='store_true')
     create_subparser.add_argument(
         '--user-data', type=argparse.FileType('rb'))
