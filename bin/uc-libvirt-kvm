@@ -196,8 +196,14 @@ def get_base_image(filters):
 def create(hostname, filters, user_data_fobj, memory=512,
         unsafe_caching=False, template_path=DEFAULT_TEMPLATE):
     base_image = get_base_image(filters)
-    main_vol = create_cow_volume(base_image, "%s" % hostname, 2)
-    ds_vol = create_ds_volume("%s-ds" % hostname, hostname, user_data_fobj)
+    # cow image names must end in ".qcow" so that the current Apparmor profile
+    # for /usr/lib/libvirt/virt-aa-helper is able to read them, determine their
+    # backing volumes, and generate a dynamic libvirt profile that permits
+    # reading the backing volume. Once our pool directory is added to the
+    # virt-aa-helper profile, this requirement can be dropped.
+    main_vol = create_cow_volume(base_image, "%s.qcow" % hostname, 2)
+    ds_vol = create_ds_volume(
+        "%s-ds.qcow" % hostname, hostname, user_data_fobj)
     xml = compose_domain_xml(
         hostname, [main_vol, ds_vol], memory=memory,
         unsafe_caching=unsafe_caching, template_path=template_path,
