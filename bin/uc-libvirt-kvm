@@ -142,7 +142,7 @@ def create_cow_volume(backing_volume_name, new_volume_name, new_volume_size):
 
 
 def compose_domain_xml(name, volumes, cpu=1, memory=512, unsafe_caching=False,
-        template_path=DEFAULT_TEMPLATE):
+        template_path=DEFAULT_TEMPLATE, log_console_output=False):
     tree = etree.parse(template_path)
     domain = tree.getroot()
     assert domain.tag == 'domain'
@@ -160,6 +160,7 @@ def compose_domain_xml(name, volumes, cpu=1, memory=512, unsafe_caching=False,
     etree.SubElement(domain, 'memory').text = str(memory * 1024)
 
     devices = domain.find('devices')
+
     etree.strip_elements(devices, 'disk')
     for disk_device, vol in zip(['vda', 'vdb'], volumes):
         disk_format_type = (
@@ -182,6 +183,17 @@ def compose_domain_xml(name, volumes, cpu=1, memory=512, unsafe_caching=False,
                 device='disk',
                 )
             )
+
+    if log_console_output:
+        print(
+            "Warning: logging guest console output introduces a DoS " +
+                "security problem on the host and should not be used in " +
+                "production.",
+            file=sys.stderr
+        )
+        etree.strip_elements(devices, 'serial')
+        devices.append(E.serial(E.target(port='0'), type='stdio'))
+
     return etree.tostring(tree)
 
 
@@ -197,7 +209,8 @@ def get_base_image(filters):
 
 
 def create(hostname, filters, user_data_fobj, memory=512, cpu=1,
-        unsafe_caching=False, template_path=DEFAULT_TEMPLATE):
+        unsafe_caching=False, template_path=DEFAULT_TEMPLATE,
+        log_console_output=False):
     base_image = get_base_image(filters)
     # cow image names must end in ".qcow" so that the current Apparmor profile
     # for /usr/lib/libvirt/virt-aa-helper is able to read them, determine their
@@ -210,6 +223,7 @@ def create(hostname, filters, user_data_fobj, memory=512, cpu=1,
     xml = compose_domain_xml(
         hostname, [main_vol, ds_vol],
         cpu=cpu,
+        log_console_output=log_console_output,
         memory=memory,
         template_path=template_path,
         unsafe_caching=unsafe_caching,
@@ -282,6 +296,7 @@ def main_create(parser, args):
     create(
         args.hostname, args.filters, user_data_fobj,
         cpu=args.cpu,
+        log_console_output=args.log_console_output,
         memory=args.memory,
         template_path=args.template,
         unsafe_caching=args.unsafe_caching,
@@ -310,6 +325,7 @@ def main(args):
     create_subparser.add_argument(
         '--user-data', type=argparse.FileType('rb'))
     create_subparser.add_argument('--password')
+    create_subparser.add_argument('--log-console-output', action='store_true')
     create_subparser.add_argument('hostname')
     create_subparser.add_argument(
         'filters', nargs='*', metavar='filter',
