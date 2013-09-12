@@ -1,3 +1,17 @@
+ubuntu-cloud-utils (0.1~alpha3) precise; urgency=low
+
+  * Factor out most simplestreams sync code.
+  * Refactor query mechanism.
+  * Switch to filters on uc-libvirt-kvm CLI.
+  * Allow missing ~/.ssh/id_rsa.pub (but warn).
+  * Give create_default_user_data args directly.
+  * Add --password option.
+  * Maintainer scripts to manage libvirt pool.
+  * Use .qcow extention for volume images.
+  * Recommend libnss-mdns.
+
+ -- Robie Basak <robie.basak@canonical.com>  Thu, 12 Sep 2013 12:32:07 +0100
+
 ubuntu-cloud-utils (0.1~alpha2) precise; urgency=low
 
   * Fix mktemp directory location
