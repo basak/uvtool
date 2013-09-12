@@ -335,11 +335,19 @@ def main_import(parser, args):
         create_volume_from_fobj(args.image_name, f, image_type='qcow2')
 
 
+class DeveloperOptionAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        namespace.unsafe_caching = True
+        namespace.log_console_output = True
+
+
 def main(args):
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
     create_subparser = subparsers.add_parser('create')
     create_subparser.set_defaults(func=main_create)
+    create_subparser.add_argument(
+        '--developer', '-d', nargs=0, action=DeveloperOptionAction)
     create_subparser.add_argument('--template', default=DEFAULT_TEMPLATE)
     create_subparser.add_argument('--memory', default=512, type=int)
     create_subparser.add_argument('--cpu', default=1, type=int)
