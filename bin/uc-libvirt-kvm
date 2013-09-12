@@ -212,25 +212,41 @@ def create(hostname, filters, user_data_fobj, memory=512, cpu=1,
         unsafe_caching=False, template_path=DEFAULT_TEMPLATE,
         log_console_output=False):
     base_image = get_base_image(filters)
-    # cow image names must end in ".qcow" so that the current Apparmor profile
-    # for /usr/lib/libvirt/virt-aa-helper is able to read them, determine their
-    # backing volumes, and generate a dynamic libvirt profile that permits
-    # reading the backing volume. Once our pool directory is added to the
-    # virt-aa-helper profile, this requirement can be dropped.
-    main_vol = create_cow_volume(base_image, "%s.qcow" % hostname, 2)
-    ds_vol = create_ds_volume(
-        "%s-ds.qcow" % hostname, hostname, user_data_fobj)
-    xml = compose_domain_xml(
-        hostname, [main_vol, ds_vol],
-        cpu=cpu,
-        log_console_output=log_console_output,
-        memory=memory,
-        template_path=template_path,
-        unsafe_caching=unsafe_caching,
-    )
-    conn = libvirt.open('qemu:///system')
-    domain = conn.defineXML(xml)
-    domain.create()
+    undo_volume_creation = []
+    try:
+        # cow image names must end in ".qcow" so that the current Apparmor
+        # profile for /usr/lib/libvirt/virt-aa-helper is able to read them,
+        # determine their backing volumes, and generate a dynamic libvirt
+        # profile that permits reading the backing volume. Once our pool
+        # directory is added to the virt-aa-helper profile, this requirement
+        # can be dropped.
+
+        main_vol = create_cow_volume(base_image, "%s.qcow" % hostname, 2)
+        undo_volume_creation.append(main_vol)
+
+        ds_vol = create_ds_volume(
+            "%s-ds.qcow" % hostname, hostname, user_data_fobj)
+        undo_volume_creation.append(ds_vol)
+
+        xml = compose_domain_xml(
+            hostname, [main_vol, ds_vol],
+            cpu=cpu,
+            log_console_output=log_console_output,
+            memory=memory,
+            template_path=template_path,
+            unsafe_caching=unsafe_caching,
+        )
+        conn = libvirt.open('qemu:///system')
+        domain = conn.defineXML(xml)
+        try:
+            domain.create()
+        except:
+            domain.undefine()
+            raise
+    except:
+        for vol in undo_volume_creation:
+            vol.delete(0)
+        raise
 
 
 def delete_domain_volumes(conn, domain):
