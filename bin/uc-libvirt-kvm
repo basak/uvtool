@@ -141,7 +141,7 @@ def create_cow_volume(backing_volume_name, new_volume_name, new_volume_size):
     return pool.createXML(etree.tostring(new_vol), 0)
 
 
-def compose_domain_xml(name, volumes, memory=512, unsafe_caching=False,
+def compose_domain_xml(name, volumes, cpu=1, memory=512, unsafe_caching=False,
         template_path=DEFAULT_TEMPLATE):
     tree = etree.parse(template_path)
     domain = tree.getroot()
@@ -149,6 +149,9 @@ def compose_domain_xml(name, volumes, memory=512, unsafe_caching=False,
 
     etree.strip_elements(domain, 'name')
     etree.SubElement(domain, 'name').text = name
+
+    etree.strip_elements(domain, 'vcpu')
+    etree.SubElement(domain, 'vcpu').text = str(cpu)
 
     etree.strip_elements(domain, 'currentMemory')
     etree.SubElement(domain, 'currentMemory').text = str(memory * 1024)
@@ -193,7 +196,7 @@ def get_base_image(filters):
     return result[0]
 
 
-def create(hostname, filters, user_data_fobj, memory=512,
+def create(hostname, filters, user_data_fobj, memory=512, cpu=1,
         unsafe_caching=False, template_path=DEFAULT_TEMPLATE):
     base_image = get_base_image(filters)
     # cow image names must end in ".qcow" so that the current Apparmor profile
@@ -205,8 +208,11 @@ def create(hostname, filters, user_data_fobj, memory=512,
     ds_vol = create_ds_volume(
         "%s-ds.qcow" % hostname, hostname, user_data_fobj)
     xml = compose_domain_xml(
-        hostname, [main_vol, ds_vol], memory=memory,
-        unsafe_caching=unsafe_caching, template_path=template_path,
+        hostname, [main_vol, ds_vol],
+        cpu=cpu,
+        memory=memory,
+        template_path=template_path,
+        unsafe_caching=unsafe_caching,
     )
     conn = libvirt.open('qemu:///system')
     domain = conn.defineXML(xml)
@@ -274,8 +280,11 @@ def main_create(parser, args):
 
     user_data_fobj = main_create_get_user_data_fobj(args)
     create(
-        args.hostname, args.filters, user_data_fobj, memory=args.memory,
-        unsafe_caching=args.unsafe_caching, template_path=args.template,
+        args.hostname, args.filters, user_data_fobj,
+        cpu=args.cpu,
+        memory=args.memory,
+        template_path=args.template,
+        unsafe_caching=args.unsafe_caching,
     )
 
 
@@ -296,6 +305,7 @@ def main(args):
     create_subparser.set_defaults(func=main_create)
     create_subparser.add_argument('--template', default=DEFAULT_TEMPLATE)
     create_subparser.add_argument('--memory', default=512, type=int)
+    create_subparser.add_argument('--cpu', default=1, type=int)
     create_subparser.add_argument('--unsafe-caching', action='store_true')
     create_subparser.add_argument(
         '--user-data', type=argparse.FileType('rb'))

@@ -1,5 +1,4 @@
 <domain type='kvm'>
-  <vcpu>1</vcpu>
   <os>
     <type>hvm</type>
     <boot dev='hd'/>
