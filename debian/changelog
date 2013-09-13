@@ -1,3 +1,14 @@
+ubuntu-cloud-utils (0.1~alpha4) precise; urgency=low
+
+  * [aeb71dc] Add --cpu option
+  * [e46328d] Add --log-console-output option
+  * [cc86616] Make serial available through "virsh console"
+  * [1335d20] Clean up volumes and domain on creation failure
+  * [bb9c5aa] Add --bridge option
+  * [271fed6] Add --developer/-d option
+
+ -- Robie Basak <robie.basak@canonical.com>  Fri, 13 Sep 2013 01:49:23 +0100
+
 ubuntu-cloud-utils (0.1~alpha3) precise; urgency=low
 
   * Factor out most simplestreams sync code.
