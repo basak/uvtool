@@ -19,6 +19,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import contextlib
+import itertools
 import os
 import shutil
 import tempfile
@@ -121,3 +122,92 @@ def have_volume_by_name(volume_name, pool_name='default'):
         return False
     else:
         return True
+
+
+def _get_all_domains(conn=None):
+    if conn is None:
+        conn = libvirt.open('qemu:///system')
+
+    # libvirt in Precise doesn't seem to have a binding for
+    # virConnectListAllDomains, and it seems that we must enumerate
+    # defined-by-not-running and running instances separately and in different
+    # ways.
+
+    for domain_id in conn.listDomainsID():
+        yield conn.lookupByID(domain_id)
+
+    for domain_name in conn.listDefinedDomains():
+        yield conn.lookupByName(domain_name)
+
+
+def _domain_element_to_volume_paths(element):
+    assert element.tag == 'domain'
+    return (
+        source.get('file')
+        for source in element.xpath(
+            "/domain/devices/disk[@type='file']/source[@file]"
+        )
+    )
+
+
+def _domain_volume_paths(domain):
+    volume_paths = set()
+
+    for flags in [0, libvirt.VIR_DOMAIN_XML_INACTIVE]:
+        element = etree.fromstring(domain.XMLDesc(flags))
+        volume_paths.update(_domain_element_to_volume_paths(element))
+
+    return frozenset(volume_paths)
+
+
+def _volume_element_to_volume_paths(element):
+    assert element.tag == 'volume'
+    return itertools.chain(
+        (path.text for path in element.xpath('/volume/target/path')),
+        (path.text for path in element.xpath('/volume/backingStore/path')),
+    )
+
+
+def _volume_volume_paths(volume):
+    # Volumes can depend on other volumes ("backing stores"), so return all
+    # paths a volume needs to function, including the top level one.
+    volume_paths = set()
+
+    element = etree.fromstring(volume.XMLDesc(0))
+    volume_paths.update(_volume_element_to_volume_paths(element))
+
+    return frozenset(volume_paths)
+
+
+def _get_all_domain_volume_paths(conn=None):
+    if conn is None:
+        conn = libvirt.open('qemu:///system')
+
+    all_volume_paths = set()
+    for domain in _get_all_domains(conn):
+        for path in _domain_volume_paths(domain):
+            try:
+                volume = conn.storageVolLookupByKey(path)
+            except libvirt.libvirtError:
+                # ignore a lookup failure, since if a volume doesn't exist,
+                # it isn't reasonable to consider what backing volumes it may
+                # have
+                continue
+            all_volume_paths.update(_volume_volume_paths(volume))
+
+    return frozenset(all_volume_paths)
+
+
+def get_all_domain_volume_names(conn=None, filter_by_dir=None):
+    # Limitation: filter_by_dir must currently end in a '/' and be the
+    # canonical path as libvirt returns it. Ideally I'd filter by pool instead,
+    # but the libvirt API appears to not provide any method to find what pool a
+    # volume is in when looked up by key.
+    if conn is None:
+        conn = libvirt.open('qemu:///system')
+
+    for path in _get_all_domain_volume_paths(conn=conn):
+        volume = conn.storageVolLookupByKey(path)
+        if filter_by_dir and not volume.path().startswith(filter_by_dir):
+            continue
+        yield volume.name()
