@@ -303,6 +303,19 @@ def main_create_get_user_data_fobj(args):
     return user_data_fobj
 
 
+def check_kvm_ok():
+    try:
+        process = subprocess.Popen(
+            ['kvm-ok'], shell=False, stdout=subprocess.PIPE, close_fds=True)
+    except OSError as e:
+        if e.errno != errno.ENOENT:
+            raise
+        # Ignore if we can't find kvm-ok executable
+        return True, None
+    stdout, stderr = process.communicate()
+    return (False, stdout) if process.returncode else (True, None)
+
+
 def main_create(parser, args):
     if args.user_data and args.password:
         parser.error("--password cannot be used with --user-data.")
@@ -312,6 +325,14 @@ def main_create(parser, args):
                 "not secure and should be used for debugging only.",
             file=sys.stderr
         )
+
+    kvm_ok, is_kvm_ok_output = check_kvm_ok()
+    if not kvm_ok:
+        print(
+            "KVM not available. kvm-ok returned:", is_kvm_ok_output,
+            sep="\n", end="", file=sys.stderr
+        )
+        return
 
     user_data_fobj = main_create_get_user_data_fobj(args)
     create(

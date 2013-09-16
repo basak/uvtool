@@ -30,7 +30,7 @@ Depends: libvirt-bin,
          qemu-utils,
          ${misc:Depends},
          ${python:Depends}
-Recommends: qemu-kvm, libnss-mdns
+Recommends: qemu-kvm, libnss-mdns, cpu-checker
 Description: Library and tools for using Ubuntu Cloud Images with libvirt
  This package provides libvirt-specific tools for consuming Ubuntu Cloud
  images. Since it depends on libvirt-bin, installing this package will also
