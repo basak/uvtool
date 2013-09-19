@@ -83,13 +83,21 @@ def get_metadata(encoded_libvirt_image_name):
 
 
 def _encode_libvirt_pool_name(product_name, version_name):
-    return base64.b64encode(
+    return 'x-uc-b64-' + base64.b64encode(
         (' '.join([product_name, version_name])).encode(), b'-_'
     )
 
 
 def _decode_libvirt_pool_name(encoded_pool_name):
-    return base64.b64decode(encoded_pool_name, altchars=b'-_').split(None, 1)
+    if not encoded_pool_name.startswith('x-uc-b64-'):
+        raise ValueError(
+            "Volume name cannot be parsed for simplestreams identity: %s" %
+            repr(encoded_pool_name)
+        )
+    return base64.b64decode(
+        encoded_pool_name[9:],
+        altchars=b'-_'
+    ).split(None, 1)
 
 
 def clean_extraneous_images():
