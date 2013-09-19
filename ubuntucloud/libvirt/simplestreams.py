@@ -33,6 +33,8 @@ import json
 import os
 import sys
 
+import libvirt
+
 import simplestreams.filters
 import simplestreams.mirrors
 import simplestreams.util
@@ -40,6 +42,7 @@ import simplestreams.util
 import ubuntucloud.libvirt
 
 LIBVIRT_POOL_NAME = 'ubuntu-cloud'
+IMAGE_DIR = '/var/lib/ubuntu-cloud/libvirt/images/' # must end in '/'; see use
 METADATA_DIR = '/var/lib/ubuntu-cloud/libvirt/metadata'
 
 
@@ -89,20 +92,38 @@ def _decode_libvirt_pool_name(encoded_pool_name):
     return base64.b64decode(encoded_pool_name, altchars=b'-_').split(None, 1)
 
 
-def _load_products(path=None, content_id=None):
+def clean_extraneous_images():
+    conn = libvirt.open('qemu:///system')
+    pool = ubuntucloud.libvirt.get_libvirt_pool_object(conn, LIBVIRT_POOL_NAME)
     encoded_libvirt_pool_names = ubuntucloud.libvirt.volume_names_in_pool(
         LIBVIRT_POOL_NAME)
+    volume_names_in_use = frozenset(
+        ubuntucloud.libvirt.get_all_domain_volume_names(
+            filter_by_dir=IMAGE_DIR)
+    )
+    for encoded_libvirt_name in encoded_libvirt_pool_names:
+        if (encoded_libvirt_name not in volume_names_in_use and
+                not have_metadata(encoded_libvirt_name)):
+            pool.storageVolLookupByName(encoded_libvirt_name).delete(0)
 
+
+def _load_products(path=None, content_id=None, clean=False):
+    # If clean evaluates to True, then remove any metadata files for which
+    # the corresponding volume is missing.
     def new_product():
         return {'versions': {}}
     products = collections.defaultdict(new_product)
-    for encoded_libvirt_name in encoded_libvirt_pool_names:
-        try:
-            metadata = get_metadata(encoded_libvirt_name)
-        except IOError:
+    for encoded_libvirt_name_string in os.listdir(METADATA_DIR):
+        metadata = get_metadata(encoded_libvirt_name_string)
+        encoded_libvirt_name_bytes = encoded_libvirt_name_string.encode(
+            'utf-8')
+        if not ubuntucloud.libvirt.have_volume_by_name(
+                encoded_libvirt_name_bytes, pool_name=LIBVIRT_POOL_NAME):
+            if clean:
+                remove_metadata(encoded_libvirt_name_string)
             continue
         product, version = _decode_libvirt_pool_name(
-            encoded_libvirt_name)
+            encoded_libvirt_name_bytes)
         assert(product == metadata['product_name'])
         assert(version == metadata['version_name'])
         products[product]['versions'][version] = {
@@ -142,8 +163,8 @@ class LibvirtMirror(simplestreams.mirrors.BasicMirrorWriter):
         self.filters = filters
         self.verbose = verbose
 
-    def load_products(self, *args, **kwargs):
-        return _load_products(*args, **kwargs)
+    def load_products(self, path=None, content_id=None):
+        return _load_products(path=path, content_id=content_id, clean=True)
 
     def filter_index_entry(self, data, src, pedigree):
         return data['datatype'] == 'image-downloads'
@@ -177,6 +198,5 @@ class LibvirtMirror(simplestreams.mirrors.BasicMirrorWriter):
         encoded_libvirt_name = _encode_libvirt_pool_name(
             product_name, version_name)
         remove_metadata(encoded_libvirt_name)
-        # XXX: only remove image when no longer used by any instance
         ubuntucloud.libvirt.delete_volume_by_name(
             encoded_libvirt_name, pool_name=LIBVIRT_POOL_NAME)

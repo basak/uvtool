@@ -47,6 +47,7 @@ def main_sync(args):
     tmirror = ubuntucloud.libvirt.simplestreams.LibvirtMirror(
         filter_list, verbose=args.verbose)
     tmirror.sync(smirror.reader, path)
+    ubuntucloud.libvirt.simplestreams.clean_extraneous_images()
 
 
 def main_query(args):

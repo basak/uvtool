@@ -1,0 +1,36 @@
+Images are stored as follows:
+
+/var/lib/ubuntu-cloud/libvirt/images is a used as a libvirt volume pool called
+"ubuntu-cloud". It is accessed through the libvirt API only.
+
+/var/lib/ubuntu-cloud/libvirt/metadata contains files whose names correspond to
+the names defined in the "ubuntu-cloud" libvirt volume pool.
+
+Metadata file semantics are as follows:
+
+If a metadata file does not exist, and the corresponding volume does not exist,
+then nothing is known about the volume (that doesn't exist).
+
+If a metadata file exists and the corresponding volume also exists, then the
+volume is known about and can be used. The metadata file is a JSON-formatted
+file containing the simplestreams key/value pairs associated with the image.
+
+If a metadata file does not exist, but the corresponding volume does exist,
+then the image is gone from the uc-simplestreams-libvirt view and cannot be
+used to create an instance. However, the image may still be in use by existing
+instances. It will be cleaned up on the next "uc-simplestreams-libvirt sync"
+command but only if it the volume is no longer in use. This is a common case:
+official "release" images go out of date, since updated images with new updated
+packages and kernels are continually produced. So the sync logic will drop
+images for use with new instances, but old instances will continue to use them
+as their copy-on-write backing volumes.
+
+If a metadata file exists, but the corresponding volume does not exist, then
+this is an error. "uc-simplestreams-libvirt sync" will erase the spurious
+metadata file on its next run.
+
+In all cases, a volume is treated as "in use" if an instance exists that uses
+it: either directly or through another volume as a backing store. These cases
+correspond to specific XPath searches in the libvirt domain and volume XML
+object definitions. Any other cases that should be covered need to be
+specifically added to the volume "in use" detection logic.
