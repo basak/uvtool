@@ -6,6 +6,7 @@
   <devices>
     <interface type='network'>
       <source network='default'/>
+      <model type='virtio'/>
     </interface>
     <serial type='pty'>
       <source path='/dev/pts/3'/>
