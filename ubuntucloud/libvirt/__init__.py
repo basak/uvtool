@@ -22,6 +22,7 @@ import contextlib
 import itertools
 import os
 import shutil
+import subprocess
 import tempfile
 
 import libvirt
@@ -41,32 +42,27 @@ def create_volume_from_fobj(new_volume_name, fobj, image_type='raw',
         pool_name='default'):
     """Create a new libvirt volume and populate it from a file-like object."""
 
-    try:
-        fobj_fileno = fobj.fileno()
-    except AttributeError:
-        # vol.upload() in create_volume_from_fobj_with_size needs to know the
-        # file size in advance. Since fobj doesn't support this (eg. it's an
-        # HTTP download), copy the data to a temporary file and use that
-        # instead.
-        temp_fobj = tempfile.TemporaryFile(prefix='ubuntucloud-libvirt')
-        with contextlib.closing(temp_fobj):
-            shutil.copyfileobj(fobj, temp_fobj)
-            temp_fobj.seek(0)
+    compressed_fobj = tempfile.NamedTemporaryFile()
+    decompressed_fobj = tempfile.NamedTemporaryFile()
+    with contextlib.closing(compressed_fobj):
+        with contextlib.closing(decompressed_fobj):
+            shutil.copyfileobj(fobj, compressed_fobj)
+            compressed_fobj.flush()
+            compressed_fobj.seek(0)  # is this necessary?
+            subprocess.check_call(
+                [
+                    'qemu-img', 'convert', '-f', image_type, '-O', image_type,
+                    compressed_fobj.name, decompressed_fobj.name
+                ],
+                shell=False, close_fds=False)
+            decompressed_fobj.seek(0)  # is this necessary?
             return _create_volume_from_fobj_with_size(
                 new_volume_name=new_volume_name,
-                fobj=temp_fobj,
-                fobj_size=os.fstat(temp_fobj.fileno()).st_size,
+                fobj=decompressed_fobj,
+                fobj_size=os.fstat(decompressed_fobj.fileno()).st_size,
                 image_type=image_type,
                 pool_name=pool_name
             )
-    else:
-        return _create_volume_from_fobj_with_size(
-            new_volume_name=new_volume_name,
-            fobj=fobj,
-            fobj_size=os.fstat(fobj_fileno).st_size,
-            image_type=image_type,
-            pool_name=pool_name
-        )
 
 
 def _create_volume_from_fobj_with_size(new_volume_name, fobj, fobj_size,
