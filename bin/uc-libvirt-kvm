@@ -356,6 +356,12 @@ def main_import(parser, args):
         create_volume_from_fobj(args.image_name, f, image_type='qcow2')
 
 
+def main_list(parser, args):
+    # Hack for now. In time this should properly use the API and list
+    # only instances created with this tool.
+    subprocess.check_call('virsh -q list --all|awk \'{print $2}\'', shell=True)
+
+
 class DeveloperOptionAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         namespace.unsafe_caching = True
@@ -390,6 +396,8 @@ def main(args):
     import_subparser.set_defaults(func=main_import)
     import_subparser.add_argument('image_name')
     import_subparser.add_argument('filename')
+    list_subparser = subparsers.add_parser('list')
+    list_subparser.set_defaults(func=main_list)
     args = parser.parse_args(args)
     args.func(parser, args)
 
