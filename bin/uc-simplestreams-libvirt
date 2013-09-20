@@ -36,17 +36,25 @@ import ubuntucloud.libvirt.simplestreams
 
 
 def main_sync(args):
-    (mirror_url, path) = simplestreams.util.path_from_mirror_url(
+    (mirror_url, initial_path) = simplestreams.util.path_from_mirror_url(
         args.mirror_url, args.path)
 
-    smirror = simplestreams.mirrors.UrlMirrorReader(mirror_url)
+    def policy(content, path):
+        if initial_path.endswith('sjson'):
+            return simplestreams.util.read_signed(
+                content, keyring=args.keyring)
+        else:
+            return content
+
+    smirror = simplestreams.mirrors.UrlMirrorReader(
+        mirror_url, policy=policy)
 
     filter_list = simplestreams.filters.get_filters(
-        [ 'datatype=image-downloads', 'ftype=disk1.img'] + args.filters
+        ['datatype=image-downloads', 'ftype=disk1.img'] + args.filters
     )
     tmirror = ubuntucloud.libvirt.simplestreams.LibvirtMirror(
         filter_list, verbose=args.verbose)
-    tmirror.sync(smirror.reader, path)
+    tmirror.sync(smirror, initial_path)
     ubuntucloud.libvirt.simplestreams.clean_extraneous_images()
 
 
@@ -71,6 +79,11 @@ def main():
     sync_subparser.add_argument(
         '--path', default=None,
         help='sync from index or products file in mirror'
+    )
+    sync_subparser.add_argument(
+        '--keyring',
+        help='keyring to be specified to gpg via --keyring',
+        default='/usr/share/keyrings/ubuntu-cloudimage-keyring.gpg'
     )
     sync_subparser.add_argument('--source', dest='mirror_url',
         default='https://cloud-images.ubuntu.com/releases/')

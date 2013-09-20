@@ -159,7 +159,7 @@ class LibvirtQuery(simplestreams.mirrors.BasicMirrorWriter):
 
     def filter_item(self, data, src, target, pedigree):
         return simplestreams.filters.filter_item(
-            self.filters, data, src, target, pedigree)
+            self.filters, data, src, pedigree)
 
     def insert_item(self, data, src, target, pedigree, contentsource):
         product_name, version_name, item_name = pedigree
@@ -187,7 +187,7 @@ class LibvirtMirror(simplestreams.mirrors.BasicMirrorWriter):
 
     def filter_item(self, data, src, target, pedigree):
         return simplestreams.filters.filter_item(
-            self.filters, data, src, target, pedigree)
+            self.filters, data, src, pedigree)
 
     def insert_item(self, data, src, target, pedigree, contentsource):
         product_name, version_name, item_name = pedigree

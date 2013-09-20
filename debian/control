@@ -28,6 +28,7 @@ Depends: libvirt-bin,
          distro-info,
          cloud-utils,
          qemu-utils,
+         ubuntu-cloudimage-keyring,
          ${misc:Depends},
          ${python:Depends}
 Recommends: qemu-kvm, libnss-mdns, cpu-checker
