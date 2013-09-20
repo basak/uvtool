@@ -1,4 +1,4 @@
-Source: ubuntu-cloud-utils
+Source: uvtool
 Section: admin
 Priority: extra
 Standards-Version: 3.9.4
@@ -8,10 +8,10 @@ Build-Depends: debhelper (>= 7),
                python-setuptools
 X-Python-Version: >= 2.7
 
-Package: ubuntu-cloud-utils
+Package: uvtool
 Architecture: all
 Depends: ${misc:Depends}
-Recommends: ubuntu-cloud-utils-libvirt
+Recommends: uvtool-libvirt
 Description: Library and tools for using Ubuntu Cloud images
  This package provides tools, utilities and wrappers to make it easy to consume
  Ubuntu Cloud images. It is intended to support different subsystems such as
@@ -20,7 +20,7 @@ Description: Library and tools for using Ubuntu Cloud images
  sensible defaults. If you do not want this, consider installing the subsystem
  packages individually, instead.
 
-Package: ubuntu-cloud-utils-libvirt
+Package: uvtool-libvirt
 Architecture: all
 Depends: libvirt-bin,
          python-libvirt,

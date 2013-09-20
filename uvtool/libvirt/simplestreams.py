@@ -39,11 +39,11 @@ import simplestreams.filters
 import simplestreams.mirrors
 import simplestreams.util
 
-import ubuntucloud.libvirt
+import uvtool.libvirt
 
-LIBVIRT_POOL_NAME = 'ubuntu-cloud'
-IMAGE_DIR = '/var/lib/ubuntu-cloud/libvirt/images/' # must end in '/'; see use
-METADATA_DIR = '/var/lib/ubuntu-cloud/libvirt/metadata'
+LIBVIRT_POOL_NAME = 'uvtool'
+IMAGE_DIR = '/var/lib/uvtool/libvirt/images/' # must end in '/'; see use
+METADATA_DIR = '/var/lib/uvtool/libvirt/metadata'
 
 
 def mkdir_p(path):
@@ -82,31 +82,33 @@ def get_metadata(encoded_libvirt_image_name):
         return json.load(f)
 
 
+BASE64_PREFIX = 'x-uvt-b64-'
+
 def _encode_libvirt_pool_name(product_name, version_name):
-    return 'x-uc-b64-' + base64.b64encode(
+    return BASE64_PREFIX + base64.b64encode(
         (' '.join([product_name, version_name])).encode(), b'-_'
     )
 
 
 def _decode_libvirt_pool_name(encoded_pool_name):
-    if not encoded_pool_name.startswith('x-uc-b64-'):
+    if not encoded_pool_name.startswith(BASE64_PREFIX):
         raise ValueError(
             "Volume name cannot be parsed for simplestreams identity: %s" %
             repr(encoded_pool_name)
         )
     return base64.b64decode(
-        encoded_pool_name[9:],
+        encoded_pool_name[len(BASE64_PREFIX):],
         altchars=b'-_'
     ).split(None, 1)
 
 
 def clean_extraneous_images():
     conn = libvirt.open('qemu:///system')
-    pool = ubuntucloud.libvirt.get_libvirt_pool_object(conn, LIBVIRT_POOL_NAME)
-    encoded_libvirt_pool_names = ubuntucloud.libvirt.volume_names_in_pool(
+    pool = uvtool.libvirt.get_libvirt_pool_object(conn, LIBVIRT_POOL_NAME)
+    encoded_libvirt_pool_names = uvtool.libvirt.volume_names_in_pool(
         LIBVIRT_POOL_NAME)
     volume_names_in_use = frozenset(
-        ubuntucloud.libvirt.get_all_domain_volume_names(
+        uvtool.libvirt.get_all_domain_volume_names(
             filter_by_dir=IMAGE_DIR)
     )
     for encoded_libvirt_name in encoded_libvirt_pool_names:
@@ -133,7 +135,7 @@ def _load_products(path=None, content_id=None, clean=False):
             metadata = get_metadata(encoded_libvirt_name_string)
             encoded_libvirt_name_bytes = encoded_libvirt_name_string.encode(
                 'utf-8')
-            if not ubuntucloud.libvirt.have_volume_by_name(
+            if not uvtool.libvirt.have_volume_by_name(
                     encoded_libvirt_name_bytes, pool_name=LIBVIRT_POOL_NAME):
                 if clean:
                     remove_metadata(encoded_libvirt_name_string)
@@ -196,9 +198,9 @@ class LibvirtMirror(simplestreams.mirrors.BasicMirrorWriter):
             print("Adding: %s %s" % (product_name, version_name))
         encoded_libvirt_name = _encode_libvirt_pool_name(
             product_name, version_name)
-        if not ubuntucloud.libvirt.have_volume_by_name(
+        if not uvtool.libvirt.have_volume_by_name(
                 encoded_libvirt_name, pool_name=LIBVIRT_POOL_NAME):
-            ubuntucloud.libvirt.create_volume_from_fobj(
+            uvtool.libvirt.create_volume_from_fobj(
                 encoded_libvirt_name, contentsource, image_type='qcow2',
                 pool_name=LIBVIRT_POOL_NAME
             )
@@ -214,5 +216,5 @@ class LibvirtMirror(simplestreams.mirrors.BasicMirrorWriter):
         encoded_libvirt_name = _encode_libvirt_pool_name(
             product_name, version_name)
         remove_metadata(encoded_libvirt_name)
-        ubuntucloud.libvirt.delete_volume_by_name(
+        uvtool.libvirt.delete_volume_by_name(
             encoded_libvirt_name, pool_name=LIBVIRT_POOL_NAME)

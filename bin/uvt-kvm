@@ -41,10 +41,10 @@ import libvirt
 from lxml import etree
 from lxml.builder import E
 
-from ubuntucloud.libvirt import create_volume_from_fobj
-import ubuntucloud.libvirt.simplestreams
+from uvtool.libvirt import create_volume_from_fobj
+import uvtool.libvirt.simplestreams
 
-DEFAULT_TEMPLATE = '/usr/share/ubuntucloud/libvirt/template.xml'
+DEFAULT_TEMPLATE = '/usr/share/uvtool/libvirt/template.xml'
 
 
 def create_default_user_data(fobj, args):
@@ -108,12 +108,12 @@ def create_ds_image(temp_dir, hostname, user_data_fobj):
 def create_ds_volume(new_volume_name, hostname, user_data_fobj):
     """Create a new libvirt cloud-init datasource volume."""
 
-    temp_dir = tempfile.mkdtemp(prefix='uc-libvirt-kvm-')
+    temp_dir = tempfile.mkdtemp(prefix='uvt-kvm-')
     try:
         create_ds_image(temp_dir, hostname, user_data_fobj)
         with open(os.path.join(temp_dir, 'ds.img'), 'rb') as f:
             return create_volume_from_fobj(
-                new_volume_name, f, pool_name='ubuntu-cloud')
+                new_volume_name, f, pool_name='uvtool')
     finally:
         shutil.rmtree(temp_dir)
 
@@ -123,7 +123,7 @@ def create_cow_volume(backing_volume_name, new_volume_name, new_volume_size):
 
     conn = libvirt.open('qemu:///system')
     try:
-        pool = conn.storagePoolLookupByName('ubuntu-cloud')
+        pool = conn.storagePoolLookupByName('uvtool')
         backing_vol = pool.storageVolLookupByName(backing_volume_name)
     except libvirt.libvirtError:
         raise RuntimeError("Cannot find volume %s" % backing_volume_name)
@@ -202,7 +202,7 @@ def compose_domain_xml(name, volumes, cpu=1, memory=512, unsafe_caching=False,
 
 
 def get_base_image(filters):
-    result = list(ubuntucloud.libvirt.simplestreams.query(filters))
+    result = list(uvtool.libvirt.simplestreams.query(filters))
     if not result:
         raise RuntimeError(
             "No images found that match filters %s." % repr(filters))

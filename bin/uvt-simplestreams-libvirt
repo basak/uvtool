@@ -32,7 +32,7 @@ import simplestreams.filters
 import simplestreams.mirrors
 import simplestreams.util
 
-import ubuntucloud.libvirt.simplestreams
+import uvtool.libvirt.simplestreams
 
 
 def main_sync(args):
@@ -52,14 +52,14 @@ def main_sync(args):
     filter_list = simplestreams.filters.get_filters(
         ['datatype=image-downloads', 'ftype=disk1.img'] + args.filters
     )
-    tmirror = ubuntucloud.libvirt.simplestreams.LibvirtMirror(
+    tmirror = uvtool.libvirt.simplestreams.LibvirtMirror(
         filter_list, verbose=args.verbose)
     tmirror.sync(smirror, initial_path)
-    ubuntucloud.libvirt.simplestreams.clean_extraneous_images()
+    uvtool.libvirt.simplestreams.clean_extraneous_images()
 
 
 def main_query(args):
-    result = ubuntucloud.libvirt.simplestreams.query(args.filters)
+    result = uvtool.libvirt.simplestreams.query(args.filters)
     print(*result, sep="\n")
 
 

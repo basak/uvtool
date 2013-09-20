@@ -2,7 +2,7 @@
 set -e
 
 if [ "$1" = purge ]; then
-	rmdir /var/lib/ubuntu-cloud || true
+	rmdir /var/lib/uvtool || true
 fi
 
 #DEBHELPER#

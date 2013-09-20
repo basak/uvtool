@@ -21,14 +21,14 @@ VERSION = '0.1'
 
 
 distutils.core.setup(
-    name="ubuntu-cloud-utils",
+    name="uvtool",
     description="Library and tools for using Ubuntu Cloud Images",
     version=VERSION,
     author="Robie Basak",
     license="AGPL3+",
-    packages=['ubuntucloud.libvirt'],
+    packages=['uvtool.libvirt'],
     scripts=glob.glob('bin/*'),
     data_files=[
-        ('/usr/share/ubuntucloud/libvirt', ['template.xml'])
+        ('/usr/share/uvtool/libvirt', ['template.xml'])
     ],
 )

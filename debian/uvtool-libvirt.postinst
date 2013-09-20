@@ -1,0 +1,39 @@
+#!/bin/sh
+set -e
+
+define_pool() {
+	if ! virsh -q pool-list --all|grep -q '^uvtool\s'; then
+		# Idempotently create virsh pool
+		tmpfile=`mktemp`
+		echo "<pool type='dir'><name>uvtool</name><target><path>/var/lib/uvtool/libvirt/images</path><permissions><mode>0700</mode></permissions></target></pool>" > "$tmpfile"
+		if ! virsh -q pool-define "$tmpfile"; then
+			rm -f "$tmpfile"
+			echo "Failed to define libvirt pool 'uvtool'" >&2
+			exit 1
+		fi
+		rm -f "$tmpfile"
+	fi
+}
+
+start_pool() {
+	# Idempotently start virsh pool
+	if ! virsh -q pool-list|grep -q '^uvtool\s'; then
+		if ! virsh -q pool-start uvtool; then
+			echo "Failed to start libvirt pool 'uvtool'" >&2
+			exit 1
+		fi
+	fi
+}
+
+if [ "$1" = configure ]; then
+	mkdir -p /var/lib/uvtool/libvirt/images
+	if [ ! -e /var/lib/uvtool/libvirt/metadata ]; then
+		mkdir -pm775 /var/lib/uvtool/libvirt/metadata
+		chown root.libvirtd /var/lib/uvtool/libvirt/metadata
+	fi
+	define_pool
+	virsh -q pool-autostart uvtool # this is idempotent
+	start_pool
+fi
+
+#DEBHELPER#
