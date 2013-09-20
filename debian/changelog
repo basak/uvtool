@@ -1,3 +1,12 @@
+uvtool (0.1~alpha6) saucy; urgency=low
+
+  *  Add ${misc:Depends} for debhelper.
+  *  Implement "list" subcommand.
+  *  Allow libvirtd group members to sync images.
+  *  Rename project to uvtool.
+
+ -- Robie Basak <robie.basak@canonical.com>  Fri, 20 Sep 2013 17:33:54 +0100
+
 ubuntu-cloud-utils (0.1~alpha5) saucy; urgency=low
 
   * Check with kvm-ok before creating instance.
