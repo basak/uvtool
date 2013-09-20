@@ -27,6 +27,10 @@ start_pool() {
 
 if [ "$1" = configure ]; then
 	mkdir -p /var/lib/ubuntu-cloud/libvirt/images
+	if [ ! -e /var/lib/ubuntu-cloud/libvirt/metadata ]; then
+		mkdir -pm775 /var/lib/ubuntu-cloud/libvirt/metadata
+		chown root.libvirtd /var/lib/ubuntu-cloud/libvirt/metadata
+	fi
 	define_pool
 	virsh -q pool-autostart ubuntu-cloud # this is idempotent
 	start_pool
