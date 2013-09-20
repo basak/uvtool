@@ -1,3 +1,16 @@
+ubuntu-cloud-utils (0.1~alpha5) saucy; urgency=low
+
+  * Check with kvm-ok before creating instance.
+  * Implement get_all_domain_volume_names.
+  * Delete old images only after they're no longer used.
+  * Decompress images on import.
+  * Prefix base64 encoded names.
+  * Use virtio for NIC.
+  * Update for upstream simplestreams API changes.
+  * Bump to Saucy for testing.
+
+ -- Robie Basak <robie.basak@canonical.com>  Fri, 20 Sep 2013 16:09:44 +0100
+
 ubuntu-cloud-utils (0.1~alpha4) precise; urgency=low
 
   * [aeb71dc] Add --cpu option
