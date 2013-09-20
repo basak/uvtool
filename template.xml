@@ -1,0 +1,20 @@
+<domain type='kvm'>
+  <memory>2097152</memory>
+  <vcpu>1</vcpu>
+  <os>
+    <type>hvm</type>
+    <boot dev='hd'/>
+  </os>
+  <devices>
+    <interface type='network'>
+      <source network='default'/>
+    </interface>
+    <serial type='null'>
+      <target port='0'/>
+    </serial>
+    <graphics type='vnc' autoport='yes' listen='127.0.0.1'>
+      <listen type='address' address='127.0.0.1'/>
+    </graphics>
+    <video/>
+  </devices>
+</domain>

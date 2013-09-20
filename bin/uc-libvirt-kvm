@@ -1,0 +1,267 @@
+#!/usr/bin/python
+
+# Wrapper around cloud-localds and libvirt
+
+# Copyright (C) 2012-3 Canonical Ltd.
+# Author: Robie Basak <robie.basak@canonical.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Depends: distro-info, cloud-utils, python-libvirt, python-lxml
+# also qemu-kvm (precise) or kvm (newer?)
+# The import subcommand needs: qemu-utils (for qemu-img)
+
+from __future__ import print_function
+from __future__ import unicode_literals
+
+import argparse
+import codecs
+import os
+import shutil
+import StringIO
+import subprocess
+import sys
+import tempfile
+import uuid
+import yaml
+
+import libvirt
+from lxml import etree
+from lxml.builder import E
+
+from ubuntucloud.libvirt import create_volume_from_fobj
+
+DEFAULT_TEMPLATE = '/usr/share/ubuntucloud/libvirt/template.xml'
+
+
+def create_default_user_data(fobj, hostname):
+    """Write some sensible default cloud-init user-data to the given file
+    object.
+
+    """
+    f = open(os.path.join(os.environ['HOME'], '.ssh', 'id_rsa.pub'), 'rb')
+    try:
+        ssh_authorized_key = f.read().strip()
+    finally:
+        f.close()
+
+    fobj.write("#cloud-config\n")
+    fobj.write(yaml.dump({
+        b'ssh_authorized_keys': [ssh_authorized_key],
+        b'hostname': hostname.encode('ascii'),
+        b'manage_etc_hosts': b'localhost',
+        b'packages': b'avahi-daemon',
+        }))
+
+
+def create_ds_image(temp_dir, hostname, user_data_fobj):
+    """Create a file called ds.img inside temp_dir that contains a useful
+    cloud-init data source.
+
+    Other temporary files created in temp_dir are currently metadata and
+    userdata and can be safely deleted.
+
+    """
+
+    with codecs.open(
+            os.path.join(temp_dir, 'metadata'), 'w', encoding='ascii') as f:
+        f.write("instance-id: %s\n" % str(uuid.uuid1()))
+
+    with open(os.path.join(temp_dir, 'userdata'), 'wb') as f:
+        f.write(user_data_fobj.read())
+
+    subprocess.check_call(
+        ['cloud-localds', 'ds.img', 'userdata', 'metadata'], cwd=temp_dir)
+
+
+def create_ds_volume(new_volume_name, hostname, user_data_fobj):
+    """Create a new libvirt cloud-init datasource volume."""
+
+    temp_dir = tempfile.mkdtemp(prefix=__file__)
+    try:
+        create_ds_image(temp_dir, hostname, user_data_fobj)
+        with open(os.path.join(temp_dir, 'ds.img'), 'rb') as f:
+            return create_volume_from_fobj(
+                new_volume_name, f, pool_name='ubuntu-cloud')
+    finally:
+        shutil.rmtree(temp_dir)
+
+
+def create_cow_volume(backing_volume_name, new_volume_name, new_volume_size):
+    """Create a new libvirt qcow2 volume backed by an existing volume."""
+
+    conn = libvirt.open('qemu:///system')
+    try:
+        pool = conn.storagePoolLookupByName('ubuntu-cloud')
+        backing_vol = pool.storageVolLookupByName(backing_volume_name)
+    except libvirt.libvirtError:
+        raise RuntimeError("Cannot find volume %s" % backing_volume_name)
+
+    new_vol = E.volume(
+        E.name(new_volume_name),
+        E.allocation('0'),
+        E.capacity(str(new_volume_size), unit='G'),
+        E.target(E.format(type='qcow2')),
+        E.backingStore(
+            E.path(backing_vol.path()),
+            E.format(type='qcow2'),
+            )
+        )
+    return pool.createXML(etree.tostring(new_vol), 0)
+
+
+def compose_domain_xml(name, volumes, memory=512, unsafe_caching=False,
+        template_path=DEFAULT_TEMPLATE):
+    tree = etree.parse(template_path)
+    domain = tree.getroot()
+    assert domain.tag == 'domain'
+
+    etree.strip_elements(domain, 'name')
+    etree.SubElement(domain, 'name').text = name
+
+    etree.strip_elements(domain, 'currentMemory')
+    etree.SubElement(domain, 'currentMemory').text = str(memory * 1024)
+
+    devices = domain.find('devices')
+    etree.strip_elements(devices, 'disk')
+    for disk_device, vol in zip(['vda', 'vdb'], volumes):
+        disk_format_type = (
+            etree.fromstring(vol.XMLDesc(0)).
+            find('target').
+            find('format').
+            get('type')
+            )
+        if unsafe_caching:
+            disk_driver = E.driver(
+                name='qemu', type=disk_format_type, cache='unsafe')
+        else:
+            disk_driver = E.driver(name='qemu', type=disk_format_type)
+        devices.append(
+            E.disk(
+                disk_driver,
+                E.source(file=vol.path()),
+                E.target(dev=disk_device),
+                type='file',
+                device='disk',
+                )
+            )
+    return etree.tostring(tree)
+
+
+def create(hostname, base_image, user_data_fobj, memory=512,
+        unsafe_caching=False, template_path=DEFAULT_TEMPLATE):
+    main_vol = create_cow_volume(base_image, "%s" % hostname, 2)
+    ds_vol = create_ds_volume("%s-ds" % hostname, hostname, user_data_fobj)
+    xml = compose_domain_xml(
+        hostname, [main_vol, ds_vol], memory=memory,
+        unsafe_caching=unsafe_caching, template_path=template_path,
+    )
+    conn = libvirt.open('qemu:///system')
+    domain = conn.defineXML(xml)
+    domain.create()
+
+
+def delete_domain_volumes(conn, domain):
+    """Delete all volumes associated with a domain.
+
+    :param conn: libvirt connection object
+    :param domain: libvirt domain object
+
+    """
+    domain_xml = etree.fromstring(domain.XMLDesc(0))
+    assert domain_xml.tag == 'domain'
+    for disk in domain_xml.find('devices').iter('disk'):
+        disk_file = disk.find('source').get('file')
+        vol = conn.storageVolLookupByKey(disk_file)
+        vol.delete(0)
+
+
+def destroy(hostname):
+    conn = libvirt.open('qemu:///system')
+    domain = conn.lookupByName(hostname)
+    state = domain.state(0)[0]
+    if state != libvirt.VIR_DOMAIN_SHUTOFF:
+        domain.destroy()
+
+    delete_domain_volumes(conn, domain)
+
+    domain.undefine()
+
+
+def get_lts_series():
+    output = subprocess.check_output(['distro-info', '--lts'], close_fds=True)
+    return output.strip()
+
+
+def main_create_get_user_data_fobj(args):
+    """Return a user-data fobj to use, based on command line arguments
+    supplied.
+
+    If no user-data was supplied on the command line, then create a temporary
+    object that contains sensible default user-data.
+
+    """
+    if args.user_data:
+        user_data_fobj = args.user_data
+    else:
+        user_data_fobj = StringIO.StringIO()
+        create_default_user_data(user_data_fobj, args.hostname)
+        user_data_fobj.seek(0)
+    return user_data_fobj
+
+
+def main_create(args):
+    user_data_fobj = main_create_get_user_data_fobj(args)
+    create(
+        args.hostname, args.base_image, user_data_fobj, memory=args.memory,
+        unsafe_caching=args.unsafe_caching, template_path=args.template,
+    )
+
+
+def main_destroy(args):
+    for h in args.hostname:
+        destroy(h)
+
+
+def main_import(args):
+    with open(args.filename, 'rb') as f:
+        create_volume_from_fobj(args.image_name, f, image_type='qcow2')
+
+
+def main(args):
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers()
+    create_subparser = subparsers.add_parser('create')
+    create_subparser.set_defaults(func=main_create)
+    create_subparser.add_argument('--template', default=DEFAULT_TEMPLATE)
+    create_subparser.add_argument('--memory', default=512, type=int)
+    create_subparser.add_argument('--unsafe-caching', action='store_true')
+    create_subparser.add_argument(
+        '--user-data', type=argparse.FileType('rb'))
+    create_subparser.add_argument('hostname')
+    create_subparser.add_argument(
+        'base_image', nargs='?', default=get_lts_series())
+    destroy_subparser = subparsers.add_parser('destroy')
+    destroy_subparser.set_defaults(func=main_destroy)
+    destroy_subparser.add_argument('hostname', nargs='+')
+    import_subparser = subparsers.add_parser('import')
+    import_subparser.set_defaults(func=main_import)
+    import_subparser.add_argument('image_name')
+    import_subparser.add_argument('filename')
+    args = parser.parse_args(args)
+    args.func(args)
+
+
+if __name__ == '__main__':
+    main(sys.argv[1:])

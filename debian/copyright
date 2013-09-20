@@ -1,0 +1,15 @@
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Contact: Robie Basak <robie.basak@canonical.com>
+
+Files: *
+Copyright: 2012-3 Canonical Ltd.
+License: AGPLv3
+ GNU AFFERO GENERAL PUBLIC LICENSE
+ Version 3, 19 November 2007
+ .
+ Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>
+ Everyone is permitted to copy and distribute verbatim copies
+ of this license document, but changing it is not allowed.
+ .
+ The complete text of the AGPL version 3 can be seen in
+ http://www.gnu.org/licenses/agpl-3.0.html

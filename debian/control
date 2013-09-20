@@ -1,0 +1,37 @@
+Source: ubuntu-cloud-utils
+Section: admin
+Priority: extra
+Standards-Version: 3.9.4
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+Build-Depends: debhelper (>= 7),
+               python-all,
+               python-setuptools
+X-Python-Version: >= 2.7
+
+Package: ubuntu-cloud-utils
+Architecture: all
+Recommends: ubuntu-cloud-utils-libvirt
+Description: Library and tools for using Ubuntu Cloud images
+ This package provides tools, utilities and wrappers to make it easy to consume
+ Ubuntu Cloud images. It is intended to support different subsystems such as
+ libvirt and lxc. Use this package to pull in all the separate packages for
+ all supported subsystems. This will configure all supported subsystems with
+ sensible defaults. If you do not want this, consider installing the subsystem
+ packages individually, instead.
+
+Package: ubuntu-cloud-utils-libvirt
+Architecture: all
+Depends: libvirt-bin,
+         python-libvirt,
+         python-simplestreams,
+         python-lxml,
+         distro-info,
+         cloud-utils,
+         qemu-utils,
+         ${misc:Depends},
+         ${python:Depends}
+Recommends: qemu-kvm
+Description: Library and tools for using Ubuntu Cloud Images with libvirt
+ This package provides libvirt-specific tools for consuming Ubuntu Cloud
+ images. Since it depends on libvirt-bin, installing this package will also
+ install libvirt which by defaults configures it with a bridge on your system.

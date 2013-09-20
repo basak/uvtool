@@ -1,0 +1,5 @@
+ubuntu-cloud-utils (0.1~alpha1) precise; urgency=low
+
+  * Initial release.
+
+ -- Robie Basak <robie.basak@ubuntu.com>  Wed, 04 Sep 2013 12:56:09 +0100
