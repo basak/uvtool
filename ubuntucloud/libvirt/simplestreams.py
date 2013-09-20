@@ -121,22 +121,30 @@ def _load_products(path=None, content_id=None, clean=False):
     def new_product():
         return {'versions': {}}
     products = collections.defaultdict(new_product)
-    for encoded_libvirt_name_string in os.listdir(METADATA_DIR):
-        metadata = get_metadata(encoded_libvirt_name_string)
-        encoded_libvirt_name_bytes = encoded_libvirt_name_string.encode(
-            'utf-8')
-        if not ubuntucloud.libvirt.have_volume_by_name(
-                encoded_libvirt_name_bytes, pool_name=LIBVIRT_POOL_NAME):
-            if clean:
-                remove_metadata(encoded_libvirt_name_string)
-            continue
-        product, version = _decode_libvirt_pool_name(
-            encoded_libvirt_name_bytes)
-        assert(product == metadata['product_name'])
-        assert(version == metadata['version_name'])
-        products[product]['versions'][version] = {
-            'items': { 'disk1.img': metadata }
-        }
+    try:
+        metadata_list = os.listdir(METADATA_DIR)
+    except OSError as e:
+        if e.errno != errno.ENOENT:
+            raise
+        # If the directory doesn't exist, then we have no metadata, and don't
+        # need to populate the products dict.
+    else:
+        for encoded_libvirt_name_string in metadata_list:
+            metadata = get_metadata(encoded_libvirt_name_string)
+            encoded_libvirt_name_bytes = encoded_libvirt_name_string.encode(
+                'utf-8')
+            if not ubuntucloud.libvirt.have_volume_by_name(
+                    encoded_libvirt_name_bytes, pool_name=LIBVIRT_POOL_NAME):
+                if clean:
+                    remove_metadata(encoded_libvirt_name_string)
+                continue
+            product, version = _decode_libvirt_pool_name(
+                encoded_libvirt_name_bytes)
+            assert(product == metadata['product_name'])
+            assert(version == metadata['version_name'])
+            products[product]['versions'][version] = {
+                'items': { 'disk1.img': metadata }
+            }
     return {'content_id': content_id, 'products': products}
 
 
