@@ -30,6 +30,7 @@ Depends: libvirt-bin,
          cloud-utils,
          qemu-utils,
          ubuntu-cloudimage-keyring,
+         socat,
          ${misc:Depends},
          ${python:Depends}
 Recommends: qemu-kvm, libnss-mdns, cpu-checker

@@ -31,6 +31,8 @@ if [ "$1" = configure ]; then
 		mkdir -pm775 /var/lib/uvtool/libvirt/metadata
 		chown root.libvirtd /var/lib/uvtool/libvirt/metadata
 	fi
+	# Make sure that libvirtd is ready. This is a workaround for LP: #1228210.
+	socat UNIX-CONNECT:/var/run/libvirt/libvirt-sock,retry=15 - < /dev/null
 	define_pool
 	virsh -q pool-autostart uvtool # this is idempotent
 	start_pool
