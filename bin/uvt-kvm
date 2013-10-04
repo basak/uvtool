@@ -212,7 +212,7 @@ def get_base_image(filters):
     return result[0]
 
 
-def create(hostname, filters, user_data_fobj, memory=512, cpu=1,
+def create(hostname, filters, user_data_fobj, memory=512, cpu=1, disk=2,
         unsafe_caching=False, template_path=DEFAULT_TEMPLATE,
         log_console_output=False, bridge=None):
     base_image = get_base_image(filters)
@@ -225,7 +225,7 @@ def create(hostname, filters, user_data_fobj, memory=512, cpu=1,
         # directory is added to the virt-aa-helper profile, this requirement
         # can be dropped.
 
-        main_vol = create_cow_volume(base_image, "%s.qcow" % hostname, 2)
+        main_vol = create_cow_volume(base_image, "%s.qcow" % hostname, disk)
         undo_volume_creation.append(main_vol)
 
         ds_vol = create_ds_volume(
@@ -339,6 +339,7 @@ def main_create(parser, args):
         args.hostname, args.filters, user_data_fobj,
         bridge=args.bridge,
         cpu=args.cpu,
+        disk=args.disk,
         log_console_output=args.log_console_output,
         memory=args.memory,
         template_path=args.template,
@@ -378,6 +379,7 @@ def main(args):
     create_subparser.add_argument('--template', default=DEFAULT_TEMPLATE)
     create_subparser.add_argument('--memory', default=512, type=int)
     create_subparser.add_argument('--cpu', default=1, type=int)
+    create_subparser.add_argument('--disk', default=8, type=int)
     create_subparser.add_argument('--bridge')
     create_subparser.add_argument('--unsafe-caching', action='store_true')
     create_subparser.add_argument(
