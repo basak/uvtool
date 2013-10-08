@@ -45,6 +45,7 @@ from uvtool.libvirt import create_volume_from_fobj
 import uvtool.libvirt.simplestreams
 
 DEFAULT_TEMPLATE = '/usr/share/uvtool/libvirt/template.xml'
+POOL_NAME = 'uvtool'
 
 
 def create_default_user_data(fobj, args):
@@ -113,7 +114,7 @@ def create_ds_volume(new_volume_name, hostname, user_data_fobj):
         create_ds_image(temp_dir, hostname, user_data_fobj)
         with open(os.path.join(temp_dir, 'ds.img'), 'rb') as f:
             return create_volume_from_fobj(
-                new_volume_name, f, pool_name='uvtool')
+                new_volume_name, f, pool_name=POOL_NAME)
     finally:
         shutil.rmtree(temp_dir)
 
@@ -123,7 +124,7 @@ def create_cow_volume(backing_volume_name, new_volume_name, new_volume_size):
 
     conn = libvirt.open('qemu:///system')
     try:
-        pool = conn.storagePoolLookupByName('uvtool')
+        pool = conn.storagePoolLookupByName(POOL_NAME)
         backing_vol = pool.storageVolLookupByName(backing_volume_name)
     except libvirt.libvirtError:
         raise RuntimeError("Cannot find volume %s" % backing_volume_name)
