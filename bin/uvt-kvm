@@ -401,6 +401,10 @@ class DeveloperOptionAction(argparse.Action):
 
 
 def main(args):
+    print(
+        "Warning: this CLI is experimental and may change.",
+        file=sys.stderr
+    )
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
     create_subparser = subparsers.add_parser('create')
