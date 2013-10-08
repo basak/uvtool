@@ -22,6 +22,7 @@
 # also qemu-kvm (precise) or kvm (newer?)
 # The import subcommand needs: qemu-utils (for qemu-img)
 
+from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import unicode_literals
 
@@ -119,15 +120,33 @@ def create_ds_volume(new_volume_name, hostname, user_data_fobj):
         shutil.rmtree(temp_dir)
 
 
-def create_cow_volume(backing_volume_name, new_volume_name, new_volume_size):
-    """Create a new libvirt qcow2 volume backed by an existing volume."""
+def create_cow_volume(backing_volume_name, new_volume_name, new_volume_size,
+        conn=None):
 
-    conn = libvirt.open('qemu:///system')
+    if conn is None:
+        conn = libvirt.open('qemu:///system')
+
+    pool = conn.storagePoolLookupByName(POOL_NAME)
     try:
-        pool = conn.storagePoolLookupByName(POOL_NAME)
         backing_vol = pool.storageVolLookupByName(backing_volume_name)
     except libvirt.libvirtError:
         raise RuntimeError("Cannot find volume %s" % backing_volume_name)
+
+    return create_cow_volume_by_path(
+        backing_volume_path=backing_vol.path(),
+        new_volume_name=new_volume_name,
+        new_volume_size=new_volume_size,
+        conn=conn
+    )
+
+def create_cow_volume_by_path(backing_volume_path, new_volume_name,
+        new_volume_size, conn=None):
+    """Create a new libvirt qcow2 volume backed by an existing volume path."""
+
+    if conn is None:
+        conn = libvirt.open('qemu:///system')
+
+    pool = conn.storagePoolLookupByName(POOL_NAME)
 
     new_vol = E.volume(
         E.name(new_volume_name),
@@ -135,7 +154,7 @@ def create_cow_volume(backing_volume_name, new_volume_name, new_volume_size):
         E.capacity(str(new_volume_size), unit='G'),
         E.target(E.format(type='qcow2')),
         E.backingStore(
-            E.path(backing_vol.path()),
+            E.path(backing_volume_path),
             E.format(type='qcow2'),
             )
         )
@@ -215,8 +234,9 @@ def get_base_image(filters):
 
 def create(hostname, filters, user_data_fobj, memory=512, cpu=1, disk=2,
         unsafe_caching=False, template_path=DEFAULT_TEMPLATE,
-        log_console_output=False, bridge=None):
-    base_image = get_base_image(filters)
+        log_console_output=False, bridge=None, backing_image_file=None):
+    if backing_image_file is None:
+        base_volume_name = get_base_image(filters)
     undo_volume_creation = []
     try:
         # cow image names must end in ".qcow" so that the current Apparmor
@@ -226,7 +246,12 @@ def create(hostname, filters, user_data_fobj, memory=512, cpu=1, disk=2,
         # directory is added to the virt-aa-helper profile, this requirement
         # can be dropped.
 
-        main_vol = create_cow_volume(base_image, "%s.qcow" % hostname, disk)
+        if backing_image_file:
+            main_vol = create_cow_volume_by_path(
+                backing_image_file, "%s.qcow" % hostname, disk)
+        else:
+            main_vol = create_cow_volume(
+                base_volume_name, "%s.qcow" % hostname, disk)
         undo_volume_creation.append(main_vol)
 
         ds_vol = create_ds_volume(
@@ -336,8 +361,13 @@ def main_create(parser, args):
         return
 
     user_data_fobj = main_create_get_user_data_fobj(args)
+    if args.backing_image_file:
+        abs_image_backing_file = os.path.abspath(args.backing_image_file)
+    else:
+        abs_image_backing_file = None
     create(
         args.hostname, args.filters, user_data_fobj,
+        backing_image_file=abs_image_backing_file,
         bridge=args.bridge,
         cpu=args.cpu,
         disk=args.disk,
@@ -387,6 +417,7 @@ def main(args):
         '--user-data', type=argparse.FileType('rb'))
     create_subparser.add_argument('--password')
     create_subparser.add_argument('--log-console-output', action='store_true')
+    create_subparser.add_argument('--backing-image-file')
     create_subparser.add_argument('hostname')
     create_subparser.add_argument(
         'filters', nargs='*', metavar='filter',
