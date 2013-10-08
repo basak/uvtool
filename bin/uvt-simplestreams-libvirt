@@ -63,6 +63,10 @@ def main_query(args):
     print(*result, sep="\n")
 
 
+def main_purge(args):
+    uvtool.libvirt.simplestreams.purge_pool()
+
+
 def main():
     print(
         "Warning: this CLI is experimental and may change.",
@@ -94,6 +98,9 @@ def main():
     query_subparser.set_defaults(func=main_query)
     query_subparser.add_argument(
         'filters', nargs='*', default=[], metavar='filter')
+
+    purge_subparser = subparsers.add_parser('purge')
+    purge_subparser.set_defaults(func=main_purge)
 
     args = parser.parse_args()
     args.func(args)

@@ -102,6 +102,39 @@ def _decode_libvirt_pool_name(encoded_pool_name):
     ).split(None, 1)
 
 
+def purge_pool(conn=None):
+    '''Delete all volumes and metadata with prejudice.
+
+    This removes images from the pool whether they are in use or not.
+
+    '''
+    # Remove all metadata first. If this is interrupted, then it just looks
+    # like there are volumes waiting to be cleaned up.
+    try:
+        metadata_list = os.listdir(METADATA_DIR)
+    except OSError as e:
+        if e.errno != errno.ENOENT:
+            raise
+    else:
+        for metadata_name in metadata_list:
+            try:
+                remove_metadata(metadata_name)
+            except OSError as e:
+                if e.errno != errno.ENOENT:
+                    raise
+                # Ignore delete if metadata doesn't exist, eg. if this is an
+                # instance volume rather than an upstream cloud image.
+                pass
+
+    # Remove actual volumes themselves
+    if conn is None:
+        conn = libvirt.open('qemu:///system')
+    pool = uvtool.libvirt.get_libvirt_pool_object(conn, LIBVIRT_POOL_NAME)
+    for volume_name in pool.listVolumes():
+        volume = pool.storageVolLookupByName(volume_name)
+        volume.delete()
+
+
 def clean_extraneous_images():
     conn = libvirt.open('qemu:///system')
     pool = uvtool.libvirt.get_libvirt_pool_object(conn, LIBVIRT_POOL_NAME)
