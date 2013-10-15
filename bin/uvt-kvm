@@ -47,6 +47,7 @@ import uvtool.libvirt.simplestreams
 
 DEFAULT_TEMPLATE = '/usr/share/uvtool/libvirt/template.xml'
 POOL_NAME = 'uvtool'
+LIBVIRT_DNSMASQ_LEASE_FILE = '/var/lib/libvirt/dnsmasq/default.leases'
 
 
 def create_default_user_data(fobj, args):
@@ -342,6 +343,21 @@ def check_kvm_ok():
     return (False, stdout) if process.returncode else (True, None)
 
 
+def mac_to_ip(mac):
+    canonical_mac = mac.lower()
+    with codecs.open(LIBVIRT_DNSMASQ_LEASE_FILE, 'r') as f:
+        for line in f:
+            fields = line.split()
+            if len(fields) > 1 and fields[1].lower() == canonical_mac:
+                return fields[2]
+        return None
+
+
+def name_to_ips(name):
+    macs = uvtool.libvirt.get_domain_macs(name)
+    return [ip for ip in (mac_to_ip(mac) for mac in macs) if ip]
+
+
 def main_create(parser, args):
     if args.user_data and args.password:
         parser.error("--password cannot be used with --user-data.")
@@ -394,6 +410,21 @@ def main_list(parser, args):
     subprocess.check_call('virsh -q list --all|awk \'{print $2}\'', shell=True)
 
 
+def main_ip(parser, args):
+    ips = name_to_ips(args.name)
+    count = len(ips)
+    if not count:
+        raise RuntimeError(
+            "No IP address found for libvirt machine %s." % repr(args.name))
+    elif count > 1:
+        print(
+            "Warning: multiple IP address found for libvirt machine %s; " +
+                "listing the first one only",
+            file=sys.stderr
+        )
+    print(ips[0])
+
+
 class DeveloperOptionAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         namespace.unsafe_caching = True
@@ -436,6 +467,9 @@ def main(args):
     import_subparser.add_argument('filename')
     list_subparser = subparsers.add_parser('list')
     list_subparser.set_defaults(func=main_list)
+    ip_subparser = subparsers.add_parser('ip')
+    ip_subparser.set_defaults(func=main_ip)
+    ip_subparser.add_argument('name')
     args = parser.parse_args(args)
     args.func(parser, args)
 

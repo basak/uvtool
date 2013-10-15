@@ -207,3 +207,14 @@ def get_all_domain_volume_names(conn=None, filter_by_dir=None):
         if filter_by_dir and not volume.path().startswith(filter_by_dir):
             continue
         yield volume.name()
+
+
+def get_domain_macs(domain_name, conn=None):
+    if conn is None:
+        conn = libvirt.open('qemu:///system')
+
+    domain = conn.lookupByName(domain_name)
+    xml = etree.fromstring(domain.XMLDesc(0))
+    for mac in xml.xpath(
+            "/domain/devices/interface[@type='network']/mac[@address]"):
+        yield mac.get('address')
