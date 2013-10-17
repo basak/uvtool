@@ -31,6 +31,7 @@ import codecs
 import errno
 import os
 import shutil
+import signal
 import StringIO
 import subprocess
 import sys
@@ -48,6 +49,13 @@ import uvtool.libvirt.simplestreams
 DEFAULT_TEMPLATE = '/usr/share/uvtool/libvirt/template.xml'
 POOL_NAME = 'uvtool'
 LIBVIRT_DNSMASQ_LEASE_FILE = '/var/lib/libvirt/dnsmasq/default.leases'
+
+
+# From: http://www.chiark.greenend.org.uk/ucgi/~cjwatson/blosxom/2009-07-02-python-sigpipe.html
+def subprocess_setup():
+    # Python installs a SIGPIPE handler by default. This is usually not what
+    # non-Python subprocesses expect.
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 
 def create_default_user_data(fobj, args):
@@ -425,6 +433,42 @@ def main_ip(parser, args):
     print(ips[0])
 
 
+def main_ssh(parser, args):
+    if not args.insecure:
+        raise NotImplementedError(
+            "ssh access with host key verification is not implemented. " +
+                "Use --insecure iff you trust your network path to the guest."
+        )
+    if not args.login_name and '@' in args.name:
+        login_name, name = args.name.split('@', 1)
+    else:
+        login_name = args.login_name  # could be None
+        name = args.name
+
+    ips = name_to_ips(name)
+    if len(ips) > 1:
+        raise RuntimeError(
+            "Multiple IPs detected for %s %s and are not supported." %
+                (repr(name), repr(ips))
+        )
+    ip = ips[0]
+
+    ssh_call = [
+        'ssh',
+        '-o', 'UserKnownHostsFile=/dev/null',
+        '-o', 'StrictHostKeyChecking=no',
+        '-o', 'CheckHostIP=no'
+    ]
+    if login_name:
+        ssh_call.extend(['-l', login_name])
+    ssh_call.append(ip)
+    ssh_call.extend(args.ssh_arguments)
+
+    sys.exit(
+        subprocess.call(ssh_call, preexec_fn=subprocess_setup, close_fds=True)
+    )
+
+
 class DeveloperOptionAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         namespace.unsafe_caching = True
@@ -470,6 +514,12 @@ def main(args):
     ip_subparser = subparsers.add_parser('ip')
     ip_subparser.set_defaults(func=main_ip)
     ip_subparser.add_argument('name')
+    ssh_subparser = subparsers.add_parser('ssh')
+    ssh_subparser.set_defaults(func=main_ssh)
+    ssh_subparser.add_argument('--insecure', action='store_true')
+    ssh_subparser.add_argument('--login-name', '-l')
+    ssh_subparser.add_argument('name')
+    ssh_subparser.add_argument('ssh_arguments', nargs='*')
     args = parser.parse_args(args)
     args.func(parser, args)
 
