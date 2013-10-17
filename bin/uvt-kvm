@@ -45,6 +45,7 @@ from lxml.builder import E
 
 from uvtool.libvirt import create_volume_from_fobj
 import uvtool.libvirt.simplestreams
+import uvtool.wait
 
 DEFAULT_TEMPLATE = '/usr/share/uvtool/libvirt/template.xml'
 POOL_NAME = 'uvtool'
@@ -469,6 +470,28 @@ def main_ssh(parser, args):
     )
 
 
+def main_wait(parser, args):
+    macs = list(uvtool.libvirt.get_domain_macs(args.name))
+    if not macs:
+        raise RuntimeError(
+            "libvirt domain %s has no NIC MACs available." % repr(args.name))
+    if len(macs) > 1:
+        raise NotImplementedError(
+            "libvirt domain %s has more than one NIC defined."
+                % repr(args.name)
+        )
+    mac = macs[0]
+    if not uvtool.wait.wait_for_libvirt_dnsmasq_lease(
+            mac, args.timeout):
+        raise RuntimeError(
+            "Timed out waiting for dnsmasq lease for %s." % mac)
+    host_ip = mac_to_ip(mac)
+    if not uvtool.wait.wait_for_open_ssh_port(
+            host_ip, args.interval, args.timeout):
+        raise RuntimeError(
+            "Timed out waiting for ssh to open on %s." % host_ip)
+
+
 class DeveloperOptionAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         namespace.unsafe_caching = True
@@ -520,6 +543,11 @@ def main(args):
     ssh_subparser.add_argument('--login-name', '-l')
     ssh_subparser.add_argument('name')
     ssh_subparser.add_argument('ssh_arguments', nargs='*')
+    wait_subparser = subparsers.add_parser('wait')
+    wait_subparser.set_defaults(func=main_wait)
+    wait_subparser.add_argument('--timeout', type=float, default=120.0)
+    wait_subparser.add_argument('--interval', type=float, default=8.0)
+    wait_subparser.add_argument('name')
     args = parser.parse_args(args)
     args.func(parser, args)
 

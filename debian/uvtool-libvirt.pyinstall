@@ -1,3 +1,4 @@
 uvtool/__init__.py
+uvtool/wait.py
 uvtool/libvirt/__init__.py
 uvtool/libvirt/simplestreams.py
