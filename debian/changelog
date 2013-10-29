@@ -1,59 +1,6 @@
-uvtool (0.1~alpha6) saucy; urgency=low
+uvtool (0~~) UNRELEASED; urgency=low
 
-  *  Add ${misc:Depends} for debhelper.
-  *  Implement "list" subcommand.
-  *  Allow libvirtd group members to sync images.
-  *  Rename project to uvtool.
+  * Template changelog for daily builds.
+  * Replace with distribution changelog for distribution builds.
 
- -- Robie Basak <robie.basak@canonical.com>  Fri, 20 Sep 2013 17:33:54 +0100
-
-ubuntu-cloud-utils (0.1~alpha5) saucy; urgency=low
-
-  * Check with kvm-ok before creating instance.
-  * Implement get_all_domain_volume_names.
-  * Delete old images only after they're no longer used.
-  * Decompress images on import.
-  * Prefix base64 encoded names.
-  * Use virtio for NIC.
-  * Update for upstream simplestreams API changes.
-  * Bump to Saucy for testing.
-
- -- Robie Basak <robie.basak@canonical.com>  Fri, 20 Sep 2013 16:09:44 +0100
-
-ubuntu-cloud-utils (0.1~alpha4) precise; urgency=low
-
-  * [aeb71dc] Add --cpu option
-  * [e46328d] Add --log-console-output option
-  * [cc86616] Make serial available through "virsh console"
-  * [1335d20] Clean up volumes and domain on creation failure
-  * [bb9c5aa] Add --bridge option
-  * [271fed6] Add --developer/-d option
-
- -- Robie Basak <robie.basak@canonical.com>  Fri, 13 Sep 2013 01:49:23 +0100
-
-ubuntu-cloud-utils (0.1~alpha3) precise; urgency=low
-
-  * Factor out most simplestreams sync code.
-  * Refactor query mechanism.
-  * Switch to filters on uc-libvirt-kvm CLI.
-  * Allow missing ~/.ssh/id_rsa.pub (but warn).
-  * Give create_default_user_data args directly.
-  * Add --password option.
-  * Maintainer scripts to manage libvirt pool.
-  * Use .qcow extention for volume images.
-  * Recommend libnss-mdns.
-
- -- Robie Basak <robie.basak@canonical.com>  Thu, 12 Sep 2013 12:32:07 +0100
-
-ubuntu-cloud-utils (0.1~alpha2) precise; urgency=low
-
-  * Fix mktemp directory location
-  * Fix memory allocation for hosts with low memory
-
- -- Robie Basak <robie.basak@canonical.com>  Thu, 05 Sep 2013 16:41:25 +0100
-
-ubuntu-cloud-utils (0.1~alpha1) precise; urgency=low
-
-  * Initial release.
-
- -- Robie Basak <robie.basak@ubuntu.com>  Wed, 04 Sep 2013 12:56:09 +0100
+ -- Robie Basak <robie.basak@ubuntu.com>  Tue, 29 Oct 2013 16:28:04 +0000
