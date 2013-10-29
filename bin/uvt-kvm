@@ -484,6 +484,10 @@ def main_wait(parser, args):
             host_ip, args.interval, args.timeout):
         raise RuntimeError(
             "Timed out waiting for ssh to open on %s." % host_ip)
+    print(
+        "Warning: wait for boot-finished not yet implemented.",
+        file=sys.stderr
+    )
 
 
 class DeveloperOptionAction(argparse.Action):
