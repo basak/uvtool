@@ -43,7 +43,7 @@ import libvirt
 from lxml import etree
 from lxml.builder import E
 
-from uvtool.libvirt import create_volume_from_fobj
+import uvtool.libvirt
 import uvtool.libvirt.simplestreams
 import uvtool.wait
 
@@ -124,7 +124,7 @@ def create_ds_volume(new_volume_name, hostname, user_data_fobj):
     try:
         create_ds_image(temp_dir, hostname, user_data_fobj)
         with open(os.path.join(temp_dir, 'ds.img'), 'rb') as f:
-            return create_volume_from_fobj(
+            return uvtool.libvirt.create_volume_from_fobj(
                 new_volume_name, f, pool_name=POOL_NAME)
     finally:
         shutil.rmtree(temp_dir)
@@ -410,7 +410,8 @@ def main_destroy(parser, args):
 
 def main_import(parser, args):
     with open(args.filename, 'rb') as f:
-        create_volume_from_fobj(args.image_name, f, image_type='qcow2')
+        uvtool.libvirt.create_volume_from_fobj(
+            args.image_name, f, image_type='qcow2')
 
 
 def main_list(parser, args):
