@@ -1,6 +1,18 @@
 #!/bin/sh
 set -e
 
+# libvirtd not running seems to be a common error condition during
+# configuration. Check for this and give the user a more helpful message than a
+# mysteriously failed uvtool-libvirt.postinst.
+configure_diagnostic() {
+	if ! socat UNIX-CONNECT:/var/run/libvirt/libvirt-sock - < /dev/null 2>/dev/null; then
+		echo "libvirtd does not appear to be listening on \"/var/run/libvirt/libvirt-sock\"." >&2
+		echo "On Ubuntu, libvirtd is managed with the \"libvirt-bin\" upstart job." >&2
+		echo "Repair libvirtd, then reconfigure uvtool-libvirt with:"
+		echo "    sudo apt-get -f install" >&2
+	fi
+}
+
 define_pool() {
 	if ! virsh -q pool-list --all|grep -q '^uvtool\s'; then
 		# Idempotently create virsh pool
@@ -26,6 +38,7 @@ start_pool() {
 }
 
 if [ "$1" = configure ]; then
+	trap configure_diagnostic EXIT
 	mkdir -p /var/lib/uvtool/libvirt/images
 	if [ ! -e /var/lib/uvtool/libvirt/metadata ]; then
 		mkdir -pm775 /var/lib/uvtool/libvirt/metadata
