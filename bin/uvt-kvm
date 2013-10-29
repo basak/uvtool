@@ -49,7 +49,6 @@ import uvtool.wait
 
 DEFAULT_TEMPLATE = '/usr/share/uvtool/libvirt/template.xml'
 POOL_NAME = 'uvtool'
-LIBVIRT_DNSMASQ_LEASE_FILE = '/var/lib/libvirt/dnsmasq/default.leases'
 
 
 # From: http://www.chiark.greenend.org.uk/ucgi/~cjwatson/blosxom/2009-07-02-python-sigpipe.html
@@ -352,19 +351,13 @@ def check_kvm_ok():
     return (False, stdout) if process.returncode else (True, None)
 
 
-def mac_to_ip(mac):
-    canonical_mac = mac.lower()
-    with codecs.open(LIBVIRT_DNSMASQ_LEASE_FILE, 'r') as f:
-        for line in f:
-            fields = line.split()
-            if len(fields) > 1 and fields[1].lower() == canonical_mac:
-                return fields[2]
-        return None
-
-
 def name_to_ips(name):
     macs = uvtool.libvirt.get_domain_macs(name)
-    return [ip for ip in (mac_to_ip(mac) for mac in macs) if ip]
+    return [
+        ip for ip
+        in (uvtool.libvirt.mac_to_ip(mac) for mac in macs)
+        if ip
+    ]
 
 
 def main_create(parser, args):
@@ -486,7 +479,7 @@ def main_wait(parser, args):
             mac, args.timeout):
         raise RuntimeError(
             "Timed out waiting for dnsmasq lease for %s." % mac)
-    host_ip = mac_to_ip(mac)
+    host_ip = uvtool.libvirt.mac_to_ip(mac)
     if not uvtool.wait.wait_for_open_ssh_port(
             host_ip, args.interval, args.timeout):
         raise RuntimeError(

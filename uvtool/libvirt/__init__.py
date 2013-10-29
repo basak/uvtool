@@ -18,6 +18,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import codecs
 import contextlib
 import itertools
 import os
@@ -28,6 +29,8 @@ import tempfile
 import libvirt
 from lxml import etree
 from lxml.builder import E
+
+LIBVIRT_DNSMASQ_LEASE_FILE = '/var/lib/libvirt/dnsmasq/default.leases'
 
 
 def get_libvirt_pool_object(libvirt_conn, pool_name):
@@ -218,3 +221,13 @@ def get_domain_macs(domain_name, conn=None):
     for mac in xml.xpath(
             "/domain/devices/interface[@type='network']/mac[@address]"):
         yield mac.get('address')
+
+
+def mac_to_ip(mac):
+    canonical_mac = mac.lower()
+    with codecs.open(LIBVIRT_DNSMASQ_LEASE_FILE, 'r') as f:
+        for line in f:
+            fields = line.split()
+            if len(fields) > 1 and fields[1].lower() == canonical_mac:
+                return fields[2]
+        return None

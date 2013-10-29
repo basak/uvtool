@@ -18,7 +18,6 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import argparse
-import codecs
 import contextlib
 import functools
 import socket
@@ -27,7 +26,8 @@ import time
 
 import pyinotify
 
-LIBVIRT_DNSMASQ_LEASE_FILE = '/var/lib/libvirt/dnsmasq/default.leases'
+import uvtool.libvirt
+
 SSH_PORT = 22
 
 
@@ -38,7 +38,7 @@ class LeaseModifyWaiter(object):
 
     def start_watching(self):
         self.wdd = self.wm.add_watch(
-            LIBVIRT_DNSMASQ_LEASE_FILE, pyinotify.IN_MODIFY)
+            uvtool.libvirt.LIBVIRT_DNSMASQ_LEASE_FILE, pyinotify.IN_MODIFY)
 
     def wait(self, timeout):
         if self.notifier.check_events(timeout=(timeout*1000)):
@@ -53,13 +53,7 @@ class LeaseModifyWaiter(object):
 
 
 def lease_has_mac(mac):
-    canonical_mac = mac.lower()
-    with codecs.open(LIBVIRT_DNSMASQ_LEASE_FILE, 'r') as f:
-        for line in f:
-            fields = line.split()
-            if len(fields) > 1 and fields[1].lower() == canonical_mac:
-                return True
-        return False
+    return uvtool.libvirt.mac_to_ip(mac) is not None
 
 
 def wait_for_libvirt_dnsmasq_lease(mac, timeout):
