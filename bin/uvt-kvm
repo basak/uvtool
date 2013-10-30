@@ -58,6 +58,32 @@ def subprocess_setup():
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 
+def run_script_once_arg_to_config(arg, unique_id):
+    with open(arg, 'rb') as f:
+        script = f.read()
+    encoded_script = script.encode('base64')
+    return [
+        b'cloud-init-per',
+        b'once',
+        unique_id.encode('utf-8'),
+        b'sh', b'-c',
+        (
+            b'f=$(mktemp --tmpdir %s-XXXXXXXXXX) && ' +
+            b'echo "%s" | base64 -d > "$f" && ' +
+            b'chmod 700 "$f" && ' +
+            b'"$f" &&' +
+            b'rm "$f"'
+        ) % (unique_id.encode('utf-8'), encoded_script)
+    ]
+
+
+def run_script_once_args_to_config(args):
+    return [
+        run_script_once_arg_to_config(arg, 'uvt-kvm-%s' % i)
+        for i, arg in enumerate(args)
+    ]
+
+
 def create_default_user_data(fobj, args):
     """Write some sensible default cloud-init user-data to the given file
     object.
@@ -91,6 +117,9 @@ def create_default_user_data(fobj, args):
         data[b'password'] = args.password.encode('utf-8')
         data[b'chpasswd'] = {b'expire': False}
         data[b'ssh_pwauth'] = True
+
+    if args.run_script_once:
+        data[b'runcmd'] = run_script_once_args_to_config(args.run_script_once)
 
     fobj.write("#cloud-config\n")
     fobj.write(yaml.dump(data))
@@ -518,6 +547,7 @@ def main(args):
     create_subparser.add_argument('--password')
     create_subparser.add_argument('--log-console-output', action='store_true')
     create_subparser.add_argument('--backing-image-file')
+    create_subparser.add_argument('--run-script-once', action='append')
     create_subparser.add_argument('hostname')
     create_subparser.add_argument(
         'filters', nargs='*', metavar='filter',
