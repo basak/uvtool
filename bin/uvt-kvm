@@ -71,7 +71,7 @@ def run_script_once_arg_to_config(arg, unique_id):
             b'f=$(mktemp --tmpdir %s-XXXXXXXXXX) && ' +
             b'echo "%s" | base64 -d > "$f" && ' +
             b'chmod 700 "$f" && ' +
-            b'"$f" &&' +
+            b'"$f" && ' +
             b'rm "$f"'
         ) % (unique_id.encode('utf-8'), encoded_script)
     ]
