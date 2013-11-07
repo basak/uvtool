@@ -84,25 +84,33 @@ def run_script_once_args_to_config(args):
     ]
 
 
+def get_ssh_authorized_keys(filename):
+    if filename is None:
+        filename = os.path.join(os.environ['HOME'], '.ssh', 'id_rsa.pub')
+
+    try:
+        f = open(filename, 'rb')
+    except IOError as e:
+        if e.errno != errno.ENOENT:
+            raise
+        print(
+            "Warning: %s not found; instance will be started " +
+                "with no ssh access by default." % repr(filename),
+            file=sys.stderr,
+        )
+        return []
+    else:
+        with f:
+            return [f.read().strip()]
+
+
 def create_default_user_data(fobj, args):
     """Write some sensible default cloud-init user-data to the given file
     object.
 
     """
-    try:
-        f = open(os.path.join(os.environ['HOME'], '.ssh', 'id_rsa.pub'), 'rb')
-    except IOError as e:
-        if e.errno != errno.ENOENT:
-            raise
-        print(
-            "Warning: ~/.ssh/id_rsa.pub not found; instance will be started " +
-                "with no ssh access by default.",
-            file=sys.stderr,
-        )
-        ssh_authorized_keys = []
-    else:
-        with f:
-            ssh_authorized_keys = [f.read().strip()]
+
+    ssh_authorized_keys = get_ssh_authorized_keys(args.ssh_public_key_file)
 
     data = {
         b'hostname': args.hostname.encode('ascii'),
@@ -548,6 +556,7 @@ def main(args):
     create_subparser.add_argument('--log-console-output', action='store_true')
     create_subparser.add_argument('--backing-image-file')
     create_subparser.add_argument('--run-script-once', action='append')
+    create_subparser.add_argument('--ssh-public-key-file')
     create_subparser.add_argument('hostname')
     create_subparser.add_argument(
         'filters', nargs='*', metavar='filter',
