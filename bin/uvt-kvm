@@ -94,8 +94,8 @@ def get_ssh_authorized_keys(filename):
         if e.errno != errno.ENOENT:
             raise
         print(
-            "Warning: %s not found; instance will be started " +
-                "with no ssh access by default." % repr(filename),
+            "Warning: %s not found; instance will be started "
+            "with no ssh access by default." % repr(filename),
             file=sys.stderr,
         )
         return []
