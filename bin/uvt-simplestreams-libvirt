@@ -40,7 +40,7 @@ def main_sync(args):
         args.mirror_url, args.path)
 
     def policy(content, path):
-        if initial_path.endswith('sjson'):
+        if initial_path.endswith('sjson') and not args.no_authentication:
             return simplestreams.util.read_signed(
                 content, keyring=args.keyring)
         else:
@@ -91,6 +91,7 @@ def main():
     )
     sync_subparser.add_argument('--source', dest='mirror_url',
         default='https://cloud-images.ubuntu.com/releases/')
+    sync_subparser.add_argument('--no-authentication', action='store_true')
     sync_subparser.add_argument('filters', nargs='*', metavar='filter',
         default=["arch=%s" % system_arch])
 
