@@ -57,32 +57,49 @@ def mkdir_p(path):
             raise
 
 
-def metadata_path(encoded_libvirt_image_name):
-    return os.path.join(METADATA_DIR, encoded_libvirt_image_name)
+class Metadata(object):
+    def __init__(self, metadata_dir=METADATA_DIR):
+        self.metadata_dir = metadata_dir
+        # Deliberately do not create metadata_dir as a side-effect here, since
+        # this class is instantiated below when the module is loaded, and we
+        # want to be able to test this module without the side-effect of it
+        # affecting the system metadata directory.
+
+    def _metadata_path(self, encoded_libvirt_image_name):
+        return os.path.join(self.metadata_dir, encoded_libvirt_image_name)
+
+    def __contains__(self, encoded_libvirt_image_name):
+        return os.path.exists(self._metadata_path(encoded_libvirt_image_name))
+
+    def __delitem__(self, encoded_libvirt_image_name):
+        os.unlink(self._metadata_path(encoded_libvirt_image_name))
+
+    def __setitem__(self, encoded_libvirt_image_name, metadata):
+        mkdir_p(self.metadata_dir)
+        with codecs.open(
+                self._metadata_path(encoded_libvirt_image_name), 'wb',
+                encoding='utf-8') as f:
+            json.dump(metadata, f, indent=4)
+
+    def __getitem__(self, encoded_libvirt_image_name):
+        with codecs.open(
+                self._metadata_path(encoded_libvirt_image_name), 'rb',
+                encoding='utf-8') as f:
+            return json.load(f)
+
+    def keys(self):
+        try:
+            return os.listdir(self.metadata_dir)
+        except OSError as e:
+            if e.errno != errno.ENOENT:
+                raise
+            return []
+
+    def items(self):
+        return [(key, self[key]) for key in self.keys()]
 
 
-def have_metadata(encoded_libvirt_image_name):
-    return os.path.exists(metadata_path(encoded_libvirt_image_name))
-
-
-def remove_metadata(encoded_libvirt_image_name):
-    os.unlink(metadata_path(encoded_libvirt_image_name))
-
-
-def set_metadata(encoded_libvirt_image_name, metadata):
-    mkdir_p(METADATA_DIR)
-    with codecs.open(
-            metadata_path(encoded_libvirt_image_name), 'wb',
-            encoding='utf-8') as f:
-        json.dump(metadata, f, indent=4)
-
-
-def get_metadata(encoded_libvirt_image_name):
-    with codecs.open(
-            metadata_path(encoded_libvirt_image_name), 'rb',
-            encoding='utf-8') as f:
-        return json.load(f)
-
+pool_metadata = Metadata(METADATA_DIR)
 
 BASE64_PREFIX = 'x-uvt-b64-'
 
@@ -112,21 +129,8 @@ def purge_pool(conn=None):
     '''
     # Remove all metadata first. If this is interrupted, then it just looks
     # like there are volumes waiting to be cleaned up.
-    try:
-        metadata_list = os.listdir(METADATA_DIR)
-    except OSError as e:
-        if e.errno != errno.ENOENT:
-            raise
-    else:
-        for metadata_name in metadata_list:
-            try:
-                remove_metadata(metadata_name)
-            except OSError as e:
-                if e.errno != errno.ENOENT:
-                    raise
-                # Ignore delete if metadata doesn't exist, eg. if this is an
-                # instance volume rather than an upstream cloud image.
-                pass
+    for key in pool_metadata.keys():
+        del pool_metadata[key]
 
     # Remove actual volumes themselves
     if conn is None:
@@ -148,7 +152,7 @@ def clean_extraneous_images():
     )
     for encoded_libvirt_name in encoded_libvirt_pool_names:
         if (encoded_libvirt_name not in volume_names_in_use and
-                not have_metadata(encoded_libvirt_name)):
+                not encoded_libvirt_name in pool_metadata):
             pool.storageVolLookupByName(encoded_libvirt_name).delete(0)
 
 
@@ -158,30 +162,21 @@ def _load_products(path=None, content_id=None, clean=False):
     def new_product():
         return {'versions': {}}
     products = collections.defaultdict(new_product)
-    try:
-        metadata_list = os.listdir(METADATA_DIR)
-    except OSError as e:
-        if e.errno != errno.ENOENT:
-            raise
-        # If the directory doesn't exist, then we have no metadata, and don't
-        # need to populate the products dict.
-    else:
-        for encoded_libvirt_name_string in metadata_list:
-            metadata = get_metadata(encoded_libvirt_name_string)
-            encoded_libvirt_name_bytes = encoded_libvirt_name_string.encode(
-                'utf-8')
-            if not uvtool.libvirt.have_volume_by_name(
-                    encoded_libvirt_name_bytes, pool_name=LIBVIRT_POOL_NAME):
-                if clean:
-                    remove_metadata(encoded_libvirt_name_string)
-                continue
-            product, version = _decode_libvirt_pool_name(
-                encoded_libvirt_name_bytes)
-            assert(product == metadata['product_name'])
-            assert(version == metadata['version_name'])
-            products[product]['versions'][version] = {
-                'items': { 'disk1.img': metadata }
-            }
+    for encoded_libvirt_name_string, metadata in pool_metadata.items():
+        encoded_libvirt_name_bytes = encoded_libvirt_name_string.encode(
+            'utf-8')
+        if not uvtool.libvirt.have_volume_by_name(
+                encoded_libvirt_name_bytes, pool_name=LIBVIRT_POOL_NAME):
+            if clean:
+                del pool_metadata[encoded_libvirt_name_string]
+            continue
+        product, version = _decode_libvirt_pool_name(
+            encoded_libvirt_name_bytes)
+        assert(product == metadata['product_name'])
+        assert(version == metadata['version_name'])
+        products[product]['versions'][version] = {
+            'items': { 'disk1.img': metadata }
+        }
     return {'content_id': content_id, 'products': products}
 
 
@@ -208,7 +203,6 @@ def query(filter_args):
     query.sync_products(None, src=_load_products())
     return (_encode_libvirt_pool_name(product_name, version_name)
         for product_name, version_name in query.result)
-
 
 class LibvirtMirror(simplestreams.mirrors.BasicMirrorWriter):
     def __init__(self, filters, verbose=False):
@@ -239,8 +233,7 @@ class LibvirtMirror(simplestreams.mirrors.BasicMirrorWriter):
                 encoded_libvirt_name, contentsource, image_type='qcow2',
                 pool_name=LIBVIRT_POOL_NAME
             )
-        set_metadata(
-            encoded_libvirt_name,
+        pool_metadata[encoded_libvirt_name] = (
             simplestreams.util.products_exdata(src, pedigree)
         )
 
@@ -250,7 +243,7 @@ class LibvirtMirror(simplestreams.mirrors.BasicMirrorWriter):
             print("Removing: %s %s" % (product_name, version_name))
         encoded_libvirt_name = _encode_libvirt_pool_name(
             product_name, version_name)
-        remove_metadata(encoded_libvirt_name)
+        del pool_metadata[encoded_libvirt_name]
         uvtool.libvirt.delete_volume_by_name(
             encoded_libvirt_name, pool_name=LIBVIRT_POOL_NAME)
 
