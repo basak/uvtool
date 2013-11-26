@@ -153,7 +153,8 @@ def clean_extraneous_images():
     for encoded_libvirt_name in encoded_libvirt_pool_names:
         if (encoded_libvirt_name not in volume_names_in_use and
                 not encoded_libvirt_name in pool_metadata):
-            pool.storageVolLookupByName(encoded_libvirt_name).delete(0)
+            uvtool.libvirt.delete_volume_by_name(
+                encoded_libvirt_name, pool_name=LIBVIRT_POOL_NAME)
 
 
 def _load_products(path=None, content_id=None, clean=False):
