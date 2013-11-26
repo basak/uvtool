@@ -279,7 +279,7 @@ def main_purge(args):
     purge_pool()
 
 
-def main():
+def main(argv=None):
     print(
         "Warning: this CLI is experimental and may change.",
         file=sys.stderr
@@ -315,7 +315,7 @@ def main():
     purge_subparser = subparsers.add_parser('purge')
     purge_subparser.set_defaults(func=main_purge)
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     args.func(args)
 
 
