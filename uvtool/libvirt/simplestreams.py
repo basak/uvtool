@@ -46,6 +46,7 @@ import uvtool.libvirt
 LIBVIRT_POOL_NAME = 'uvtool'
 IMAGE_DIR = '/var/lib/uvtool/libvirt/images/' # must end in '/'; see use
 METADATA_DIR = '/var/lib/uvtool/libvirt/metadata'
+USEFUL_FIELD_NAMES = ['release', 'arch', 'label']
 
 
 def mkdir_p(path):
@@ -269,9 +270,16 @@ def main_sync(args):
     clean_extraneous_images()
 
 
+def libvirt_pool_name_to_useful_description_string(libvirt_pool_name):
+    volume_metadata = pool_metadata[libvirt_pool_name]
+    filters = ' '.join('='.join((key, volume_metadata[key])) for key in USEFUL_FIELD_NAMES)
+    return ' '.join([filters, '(%s)' % volume_metadata['version_name']])
+
+
 def main_query(args):
     result = query(args.filters)
-    print(*result, sep="\n")
+    useful_result = sorted(libvirt_pool_name_to_useful_description_string(r) for r in result)
+    print(*useful_result, sep="\n")
 
 
 def main_purge(args):
