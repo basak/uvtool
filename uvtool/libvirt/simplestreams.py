@@ -245,8 +245,6 @@ class LibvirtMirror(simplestreams.mirrors.BasicMirrorWriter):
         encoded_libvirt_name = _encode_libvirt_pool_name(
             product_name, version_name)
         del pool_metadata[encoded_libvirt_name]
-        uvtool.libvirt.delete_volume_by_name(
-            encoded_libvirt_name, pool_name=LIBVIRT_POOL_NAME)
 
 
 def main_sync(args):
