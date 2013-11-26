@@ -1,0 +1,15 @@
+{
+ "index": {
+  "com.ubuntu.maas:download": {
+   "datatype": "image-downloads", 
+   "path": "streams/v1/com.ubuntu.cloud:released:download.json", 
+   "updated": "Tue, 19 Nov 2013 10:31:23 +0000", 
+   "products": [
+    "com.ubuntu.cloud:server:12.04:amd64"
+   ], 
+   "format": "products:1.0"
+  }
+ }, 
+ "updated": "Tue, 19 Nov 2013 10:31:23 +0000", 
+ "format": "index:1.0"
+}

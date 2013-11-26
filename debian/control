@@ -5,7 +5,11 @@ Standards-Version: 3.9.4
 Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
 Build-Depends: debhelper (>= 7),
                python-all,
-               python-setuptools
+               python-setuptools,
+               python-mock,
+               python-libvirt,
+               python-lxml,
+               python-simplestreams
 X-Python-Version: >= 2.7
 
 Package: uvtool

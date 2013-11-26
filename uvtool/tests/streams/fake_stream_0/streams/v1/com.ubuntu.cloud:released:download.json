@@ -1,0 +1,29 @@
+{
+ "updated": "Tue, 19 Nov 2013 10:31:23 +0000", 
+ "license": "http://www.canonical.com/intellectual-property-policy", 
+ "format": "products:1.0",
+ "datatype": "image-downloads", 
+ "products": {
+  "com.ubuntu.cloud:server:12.04:amd64": {
+   "release": "precise", 
+   "version": "12.04", 
+   "arch": "amd64", 
+   "versions": {
+    "20131119": {
+     "items": {
+      "disk1.img": {
+       "size": 11, 
+       "path": "fake_stream_0", 
+       "ftype": "disk1.img", 
+       "sha256": "520e579da0a29a08f73aaa018eed12b6778460ea446f442dedaa8a950674afda", 
+       "md5": "dd70deb9c14b77a35f1a4fb9e1485969"
+      }
+     }, 
+     "pubname": "ubuntu-precise-12.04-amd64-server-20131119", 
+     "label": "release"
+    }
+   }
+  }
+ },
+ "content_id": "com.ubuntu.cloud:released:download"
+}
