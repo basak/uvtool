@@ -26,6 +26,7 @@ class TestSimpleStreams(unittest.TestCase):
             '--no-authentication '
             '--source=uvtool/tests/streams/fake_stream_0 '
             '--path streams/v1/index.json '
+            'release=precise arch=amd64 '
             .split()
         )
         # Check that we have mocked libvirt correctly, which means that
@@ -75,6 +76,7 @@ class TestSimpleStreams(unittest.TestCase):
             '--no-authentication '
             '--source=uvtool/tests/streams/fake_stream_0 '
             '--path streams/v1/index.json '
+            'release=precise arch=amd64 '
             .split()
         )
         uvtool_libvirt.reset_mock()
@@ -85,6 +87,7 @@ class TestSimpleStreams(unittest.TestCase):
             '--no-authentication '
             '--source=uvtool/tests/streams/fake_stream_1 '
             '--path streams/v1/index.json '
+            'release=precise arch=amd64 '
             .split()
         )
         # create_volume_from_fobj should have been called exactly once to
