@@ -87,14 +87,27 @@ def _create_volume_from_fobj_with_size(new_volume_name, fobj, fobj_size,
         )
     vol = pool.createXML(etree.tostring(new_vol), 0)
 
-    stream = conn.newStream(0)
-    vol.upload(stream, 0, fobj_size, 0)
+    try:
+        stream = conn.newStream(0)
+        vol.upload(stream, 0, fobj_size, 0)
 
-    def handler(stream_ignored, size, opaque_ignored):
-        return fobj.read(size)
+        def handler(stream_ignored, size, opaque_ignored):
+            return fobj.read(size)
 
-    stream.sendAll(handler, None)
-    stream.finish()
+        try:
+            stream.sendAll(handler, None)
+        except Exception as e:
+            try:
+                # This unexpectedly raises an exception even on a normal call,
+                # so ignore it.
+                stream.abort()
+            except:
+                pass
+            raise e
+        stream.finish()
+    except:
+        vol.delete(flags=0)
+        raise
 
     return vol
 
