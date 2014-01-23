@@ -14,7 +14,7 @@ configure_diagnostic() {
 }
 
 define_pool() {
-	if ! virsh -q pool-list --all|grep -q '^uvtool\s'; then
+	if ! virsh -q pool-list --all|grep -q '^\s*uvtool\s'; then
 		# Idempotently create virsh pool
 		tmpfile=`mktemp`
 		echo "<pool type='dir'><name>uvtool</name><target><path>/var/lib/uvtool/libvirt/images</path><permissions><mode>0700</mode></permissions></target></pool>" > "$tmpfile"
@@ -29,7 +29,7 @@ define_pool() {
 
 start_pool() {
 	# Idempotently start virsh pool
-	if ! virsh -q pool-list|grep -q '^uvtool\s'; then
+	if ! virsh -q pool-list|grep -q '^\s*uvtool\s'; then
 		if ! virsh -q pool-start uvtool; then
 			echo "Failed to start libvirt pool 'uvtool'" >&2
 			exit 1

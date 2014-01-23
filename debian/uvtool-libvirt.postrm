@@ -2,7 +2,7 @@
 set -e
 
 stop_pool() {
-	if virsh -q pool-list|grep -q '^uvtool\s'; then
+	if virsh -q pool-list|grep -q '^\s*uvtool\s'; then
 		# In the postrm virsh may be gone or deconfigured, so ignore
 		# failures gracefully.
 		virsh -q pool-destroy uvtool || true
@@ -10,7 +10,7 @@ stop_pool() {
 }
 
 undefine_pool() {
-	if virsh -q pool-list --all|grep -q '^uvtool\s'; then
+	if virsh -q pool-list --all|grep -q '^\s*uvtool\s'; then
 		# In the postrm virsh may be gone or deconfigured, so ignore
 		# failures gracefully.
 		virsh -q pool-undefine uvtool || true
