@@ -512,6 +512,13 @@ def main_ssh(parser, args):
 
 
 def main_wait(parser, args):
+    conn = libvirt.open('qemu:///system')
+    domain = conn.lookupByName(args.name)
+    state = domain.state(0)[0]
+    if state != libvirt.VIR_DOMAIN_RUNNING:
+        raise RuntimeError(
+            "libvirt domain %s is not running." % repr(args.name))
+
     macs = list(uvtool.libvirt.get_domain_macs(args.name))
     if not macs:
         raise RuntimeError(
