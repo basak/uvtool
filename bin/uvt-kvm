@@ -407,7 +407,7 @@ def name_to_ips(name):
     ]
 
 
-def ssh(name, login_name, arguments):
+def ssh(name, login_name, arguments, stdin=None, checked=False, sysexit=True):
     ips = name_to_ips(name)
     if len(ips) > 1:
         raise RuntimeError(
@@ -427,9 +427,16 @@ def ssh(name, login_name, arguments):
     ssh_call.append(ip)
     ssh_call.extend(arguments)
 
-    sys.exit(
-        subprocess.call(ssh_call, preexec_fn=subprocess_setup, close_fds=True)
+    call = subprocess.check_call if checked else subprocess.call
+
+    result = call(
+        ssh_call, preexec_fn=subprocess_setup, close_fds=True, stdin=stdin
     )
+
+    if sysexit:
+        sys.exit(result)
+
+    return result
 
 
 def main_create(parser, args):
