@@ -49,6 +49,7 @@ import uvtool.libvirt.simplestreams
 import uvtool.wait
 
 DEFAULT_TEMPLATE = '/usr/share/uvtool/libvirt/template.xml'
+DEFAULT_REMOTE_WAIT_SCRIPT = '/usr/share/uvtool/libvirt/remote-wait.sh'
 POOL_NAME = 'uvtool'
 
 
@@ -522,6 +523,31 @@ def main_ssh(parser, args):
     return ssh(name, login_name, args.ssh_arguments)
 
 
+def main_wait_remote(parser, args):
+    if not args.insecure:
+        print(
+            "Warning: secure wait for boot-finished not yet implemented; "
+                "use --insecure.",
+            file=sys.stderr
+        )
+        return
+
+    with open(args.remote_wait_script, 'rb') as wait_script:
+        ssh(
+            args.name,
+            args.remote_wait_user,
+            [
+                'env',
+                'UVTOOL_WAIT_INTERVAL=%s' % args.interval,
+                'UVTOOL_WAIT_TIMEOUT=%s' % args.timeout,
+                'sh',
+                '-'
+            ],
+            checked=True,
+            stdin=wait_script
+        )
+
+
 def main_wait(parser, args):
     conn = libvirt.open('qemu:///system')
     domain = conn.lookupByName(args.name)
@@ -549,10 +575,7 @@ def main_wait(parser, args):
             host_ip, args.interval, args.timeout):
         raise RuntimeError(
             "Timed out waiting for ssh to open on %s." % host_ip)
-    print(
-        "Warning: wait for boot-finished not yet implemented.",
-        file=sys.stderr
-    )
+    main_wait_remote(parser, args)
 
 
 class DeveloperOptionAction(argparse.Action):
@@ -618,6 +641,10 @@ def main(args):
     wait_subparser.set_defaults(func=main_wait)
     wait_subparser.add_argument('--timeout', type=float, default=120.0)
     wait_subparser.add_argument('--interval', type=float, default=8.0)
+    wait_subparser.add_argument('--remote-wait-script',
+        default=DEFAULT_REMOTE_WAIT_SCRIPT)
+    wait_subparser.add_argument('--insecure', action='store_true')
+    wait_subparser.add_argument('--remote-wait-user', default='ubuntu')
     wait_subparser.add_argument('name')
     args = parser.parse_args(args)
     args.func(parser, args)

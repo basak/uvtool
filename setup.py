@@ -29,6 +29,6 @@ distutils.core.setup(
     packages=['uvtool.libvirt'],
     scripts=glob.glob('bin/*'),
     data_files=[
-        ('/usr/share/uvtool/libvirt', ['template.xml'])
+        ('/usr/share/uvtool/libvirt', ['template.xml', 'remote-wait.sh'])
     ],
 )
