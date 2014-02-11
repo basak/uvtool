@@ -29,6 +29,7 @@ from __future__ import unicode_literals
 import argparse
 import codecs
 import errno
+import itertools
 import os
 import shutil
 import signal
@@ -115,7 +116,6 @@ def create_default_user_data(fobj, args):
     data = {
         b'hostname': args.hostname.encode('ascii'),
         b'manage_etc_hosts': b'localhost',
-        b'packages': b'avahi-daemon',
     }
 
     if ssh_authorized_keys:
@@ -128,6 +128,12 @@ def create_default_user_data(fobj, args):
 
     if args.run_script_once:
         data[b'runcmd'] = run_script_once_args_to_config(args.run_script_once)
+
+    if args.packages:
+        data[b'packages'] = [
+            s.encode('ascii')  # Debian Policy dictates a-z,0-9,+,-,.
+            for s in itertools.chain(*[p.split(',') for p in args.packages])
+        ]
 
     fobj.write("#cloud-config\n")
     fobj.write(yaml.dump(data))
@@ -566,6 +572,7 @@ def main(args):
     create_subparser.add_argument('--backing-image-file')
     create_subparser.add_argument('--run-script-once', action='append')
     create_subparser.add_argument('--ssh-public-key-file')
+    create_subparser.add_argument('--packages', action='append')
     create_subparser.add_argument('hostname')
     create_subparser.add_argument(
         'filters', nargs='*', metavar='filter',
