@@ -407,6 +407,31 @@ def name_to_ips(name):
     ]
 
 
+def ssh(name, login_name, arguments):
+    ips = name_to_ips(name)
+    if len(ips) > 1:
+        raise RuntimeError(
+            "Multiple IPs detected for %s %s and are not supported." %
+                (repr(name), repr(ips))
+        )
+    ip = ips[0]
+
+    ssh_call = [
+        'ssh',
+        '-o', 'UserKnownHostsFile=/dev/null',
+        '-o', 'StrictHostKeyChecking=no',
+        '-o', 'CheckHostIP=no'
+    ]
+    if login_name:
+        ssh_call.extend(['-l', login_name])
+    ssh_call.append(ip)
+    ssh_call.extend(arguments)
+
+    sys.exit(
+        subprocess.call(ssh_call, preexec_fn=subprocess_setup, close_fds=True)
+    )
+
+
 def main_create(parser, args):
     if args.user_data and args.password:
         parser.error("--password cannot be used with --user-data.")
@@ -487,28 +512,7 @@ def main_ssh(parser, args):
         login_name = args.login_name  # could be None
         name = args.name
 
-    ips = name_to_ips(name)
-    if len(ips) > 1:
-        raise RuntimeError(
-            "Multiple IPs detected for %s %s and are not supported." %
-                (repr(name), repr(ips))
-        )
-    ip = ips[0]
-
-    ssh_call = [
-        'ssh',
-        '-o', 'UserKnownHostsFile=/dev/null',
-        '-o', 'StrictHostKeyChecking=no',
-        '-o', 'CheckHostIP=no'
-    ]
-    if login_name:
-        ssh_call.extend(['-l', login_name])
-    ssh_call.append(ip)
-    ssh_call.extend(args.ssh_arguments)
-
-    sys.exit(
-        subprocess.call(ssh_call, preexec_fn=subprocess_setup, close_fds=True)
-    )
+    return ssh(name, login_name, args.ssh_arguments)
 
 
 def main_wait(parser, args):
