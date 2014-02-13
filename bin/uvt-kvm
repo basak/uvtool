@@ -91,7 +91,27 @@ def run_script_once_args_to_config(args):
     ]
 
 
-def get_ssh_authorized_keys(filename):
+def get_ssh_agent_public_keys():
+    """Read public keys from an agent, if available, or return None."""
+    try:
+        with open("/dev/null") as fpnull:
+            output = subprocess.check_output(
+                ['ssh-add', '-L'],
+                stderr=fpnull
+            )
+    except subprocess.CalledProcessError:
+        return None
+
+    output = output.strip()
+    if output:
+        return output.splitlines()
+    else:
+        return None
+
+
+def read_ssh_public_key_file(filename):
+    """Read public keys from a file, or return None."""
+
     if filename is None:
         filename = os.path.join(os.environ['HOME'], '.ssh', 'id_rsa.pub')
 
@@ -100,15 +120,32 @@ def get_ssh_authorized_keys(filename):
     except IOError as e:
         if e.errno != errno.ENOENT:
             raise
+        return None
+    else:
+        with f:
+            return f.read().strip().splitlines()
+
+
+def get_ssh_authorized_keys(filename):
+    # If the user hasn't explicitly specified a file source, then try
+    # the agent first.
+    if filename is None:
+        agent_keys = get_ssh_agent_public_keys()
+        if agent_keys:
+            return agent_keys
+        # Fall back to reading the public key file.
+
+    # Read the public key file if one is present.
+    file_keys = read_ssh_public_key_file(filename)
+    if file_keys:
+        return file_keys
+    else:
         print(
             "Warning: %s not found; instance will be started "
             "with no ssh access by default." % repr(filename),
             file=sys.stderr,
         )
         return []
-    else:
-        with f:
-            return [f.read().strip()]
 
 
 def create_default_user_data(fobj, args):
