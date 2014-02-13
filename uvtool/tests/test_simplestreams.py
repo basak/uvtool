@@ -4,6 +4,16 @@ import mock
 
 import uvtool.libvirt.simplestreams as simplestreams
 
+# Some tests use more recent features of mock that are not available with mock
+# 0.7.2-1 as shipped with Ubuntu Precise, but for the next six months, we still
+# want backports to be possible. Skip tests on builds that don't have a recent
+# enough version of mock available. Ideally, this would be a test directly for
+# the version of mock required, but I cannot find an implementation of
+# NormalizedVersion as described in PEP-0386. As this is a temporary hack
+# anyway, this will do for now, since we know that the mock version on Ubuntu
+# Precise will never change.
+ON_PRECISE = mock.__version__ == '0.7.2'
+
 FAKE_VOLUME_PRODUCT_NAME = 'com.ubuntu.cloud:server:12.04:amd64'
 FAKE_VOLUME_VERSION_0 = '20131119'
 FAKE_VOLUME_VERSION_1 = '20131120'
@@ -12,6 +22,7 @@ ENCODED_FAKE_VOLUME_PRODUCT_NAME_0 = simplestreams._encode_libvirt_pool_name(
 ENCODED_FAKE_VOLUME_PRODUCT_NAME_1 = simplestreams._encode_libvirt_pool_name(
     FAKE_VOLUME_PRODUCT_NAME, FAKE_VOLUME_VERSION_1)
 
+@unittest.skipIf(ON_PRECISE, 'mock version is too old')
 @mock.patch('uvtool.libvirt.simplestreams.uvtool.libvirt')
 @mock.patch('uvtool.libvirt.simplestreams.pool_metadata', new={})
 @mock.patch('uvtool.libvirt.simplestreams.libvirt')
