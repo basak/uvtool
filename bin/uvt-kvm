@@ -53,6 +53,11 @@ DEFAULT_REMOTE_WAIT_SCRIPT = '/usr/share/uvtool/libvirt/remote-wait.sh'
 POOL_NAME = 'uvtool'
 
 
+class CLIError(Exception):
+    """An error that should be reflected back to the CLI user."""
+    pass
+
+
 # From: http://www.chiark.greenend.org.uk/ucgi/~cjwatson/blosxom/2009-07-02-python-sigpipe.html
 def subprocess_setup():
     # Python installs a SIGPIPE handler by default. This is usually not what
@@ -281,11 +286,11 @@ def compose_domain_xml(name, volumes, cpu=1, memory=512, unsafe_caching=False,
 def get_base_image(filters):
     result = list(uvtool.libvirt.simplestreams.query(filters))
     if not result:
-        raise RuntimeError(
-            "No images found that match filters %s." % repr(filters))
+        raise CLIError(
+            "no images found that match filters %s." % repr(filters))
     elif len(result) != 1:
-        raise RuntimeError(
-            "Multiple images found that match filters %s." % repr(filters))
+        raise CLIError(
+            "multiple images found that match filters %s." % repr(filters))
     return result[0]
 
 
@@ -354,7 +359,13 @@ def delete_domain_volumes(conn, domain):
 
 def destroy(hostname):
     conn = libvirt.open('qemu:///system')
-    domain = conn.lookupByName(hostname)
+    try:
+        domain = conn.lookupByName(hostname)
+    except libvirt.libvirtError as e:
+        if e.get_error_code() == libvirt.VIR_ERR_NO_DOMAIN:
+            raise CLIError("domain %s not found." % repr(hostname))
+        else:
+            raise
     state = domain.state(0)[0]
     if state != libvirt.VIR_DOMAIN_SHUTOFF:
         domain.destroy()
@@ -411,8 +422,8 @@ def name_to_ips(name):
 def ssh(name, login_name, arguments, stdin=None, checked=False, sysexit=True):
     ips = name_to_ips(name)
     if len(ips) > 1:
-        raise RuntimeError(
-            "Multiple IPs detected for %s %s and are not supported." %
+        raise CLIError(
+            "multiple IPs detected for %s %s and are not supported." %
                 (repr(name), repr(ips))
         )
     ip = ips[0]
@@ -497,8 +508,8 @@ def main_ip(parser, args):
     ips = name_to_ips(args.name)
     count = len(ips)
     if not count:
-        raise RuntimeError(
-            "No IP address found for libvirt machine %s." % repr(args.name))
+        raise CLIError(
+            "no IP address found for libvirt machine %s." % repr(args.name))
     elif count > 1:
         print(
             "Warning: multiple IP address found for libvirt machine %s; " +
@@ -508,9 +519,9 @@ def main_ip(parser, args):
     print(ips[0])
 
 
-def main_ssh(parser, args):
+def main_ssh(parser, args, default_login_name='ubuntu'):
     if not args.insecure:
-        raise NotImplementedError(
+        raise CLIError(
             "ssh access with host key verification is not implemented. " +
                 "Use --insecure iff you trust your network path to the guest."
         )
@@ -553,28 +564,28 @@ def main_wait(parser, args):
     domain = conn.lookupByName(args.name)
     state = domain.state(0)[0]
     if state != libvirt.VIR_DOMAIN_RUNNING:
-        raise RuntimeError(
+        raise CLIError(
             "libvirt domain %s is not running." % repr(args.name))
 
     macs = list(uvtool.libvirt.get_domain_macs(args.name))
     if not macs:
-        raise RuntimeError(
+        raise CLIError(
             "libvirt domain %s has no NIC MACs available." % repr(args.name))
     if len(macs) > 1:
-        raise NotImplementedError(
+        raise CLIError(
             "libvirt domain %s has more than one NIC defined."
                 % repr(args.name)
         )
     mac = macs[0]
     if not uvtool.wait.wait_for_libvirt_dnsmasq_lease(
             mac, args.timeout):
-        raise RuntimeError(
-            "Timed out waiting for dnsmasq lease for %s." % mac)
+        raise CLIError(
+            "timed out waiting for dnsmasq lease for %s." % mac)
     host_ip = uvtool.libvirt.mac_to_ip(mac)
     if not uvtool.wait.wait_for_open_ssh_port(
             host_ip, args.interval, args.timeout):
-        raise RuntimeError(
-            "Timed out waiting for ssh to open on %s." % host_ip)
+        raise CLIError(
+            "timed out waiting for ssh to open on %s." % host_ip)
     main_wait_remote(parser, args)
 
 
@@ -650,5 +661,26 @@ def main(args):
     args.func(parser, args)
 
 
+def main_cli_wrapper(*args, **kwargs):
+    try:
+        main(*args, **kwargs)
+    except CLIError as e:
+        print(
+            "%s: error: %s" % (os.path.basename(sys.argv[0]), e),
+            file=sys.stderr
+        )
+        sys.exit(1)
+    except libvirt.libvirtError as e:
+        libvirt_message = e.get_error_message()
+        print(
+            "%s: error: libvirt: %s" % (
+                os.path.basename(sys.argv[0]),
+                libvirt_message
+            ),
+            file=sys.stderr
+        )
+        sys.exit(1)
+
+
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    main_cli_wrapper(sys.argv[1:])
