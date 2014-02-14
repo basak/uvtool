@@ -27,7 +27,6 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import argparse
-import codecs
 import errno
 import itertools
 import os
@@ -182,7 +181,14 @@ def create_default_user_data(fobj, args):
     fobj.write(yaml.dump(data))
 
 
-def create_ds_image(temp_dir, hostname, user_data_fobj):
+def create_default_meta_data(fobj, args):
+    data = {
+        b'instance-id': str(uuid.uuid1()).encode('ascii'),
+    }
+    fobj.write(yaml.dump(data))
+
+
+def create_ds_image(temp_dir, hostname, user_data_fobj, meta_data_fobj):
     """Create a file called ds.img inside temp_dir that contains a useful
     cloud-init data source.
 
@@ -191,23 +197,21 @@ def create_ds_image(temp_dir, hostname, user_data_fobj):
 
     """
 
-    with codecs.open(
-            os.path.join(temp_dir, 'metadata'), 'w', encoding='ascii') as f:
-        f.write("instance-id: %s\n" % str(uuid.uuid1()))
-
     with open(os.path.join(temp_dir, 'userdata'), 'wb') as f:
         f.write(user_data_fobj.read())
+    with open(os.path.join(temp_dir, 'metadata'), 'wb') as f:
+        f.write(meta_data_fobj.read())
 
     subprocess.check_call(
         ['cloud-localds', 'ds.img', 'userdata', 'metadata'], cwd=temp_dir)
 
 
-def create_ds_volume(new_volume_name, hostname, user_data_fobj):
+def create_ds_volume(new_volume_name, hostname, user_data_fobj, meta_data_fobj):
     """Create a new libvirt cloud-init datasource volume."""
 
     temp_dir = tempfile.mkdtemp(prefix='uvt-kvm-')
     try:
-        create_ds_image(temp_dir, hostname, user_data_fobj)
+        create_ds_image(temp_dir, hostname, user_data_fobj, meta_data_fobj)
         with open(os.path.join(temp_dir, 'ds.img'), 'rb') as f:
             return uvtool.libvirt.create_volume_from_fobj(
                 new_volume_name, f, pool_name=POOL_NAME)
@@ -331,9 +335,9 @@ def get_base_image(filters):
     return result[0]
 
 
-def create(hostname, filters, user_data_fobj, memory=512, cpu=1, disk=2,
-        unsafe_caching=False, template_path=DEFAULT_TEMPLATE,
-        log_console_output=False, bridge=None, backing_image_file=None):
+def create(hostname, filters, user_data_fobj, meta_data_fobj, memory=512,
+           cpu=1, disk=2, unsafe_caching=False, template_path=DEFAULT_TEMPLATE,
+           log_console_output=False, bridge=None, backing_image_file=None):
     if backing_image_file is None:
         base_volume_name = get_base_image(filters)
     undo_volume_creation = []
@@ -354,7 +358,7 @@ def create(hostname, filters, user_data_fobj, memory=512, cpu=1, disk=2,
         undo_volume_creation.append(main_vol)
 
         ds_vol = create_ds_volume(
-            "%s-ds.qcow" % hostname, hostname, user_data_fobj)
+            "%s-ds.qcow" % hostname, hostname, user_data_fobj, meta_data_fobj)
         undo_volume_creation.append(ds_vol)
 
         xml = compose_domain_xml(
@@ -417,21 +421,25 @@ def get_lts_series():
     return output.strip()
 
 
-def main_create_get_user_data_fobj(args):
-    """Return a user-data fobj to use, based on command line arguments
-    supplied.
+def apply_default_fobj(args, key, create_default_data_fn):
+    """Return the fobj specified, creating it if required.
 
-    If no user-data was supplied on the command line, then create a temporary
-    object that contains sensible default user-data.
+    If the "key" attribute inside args is not None, then just return it.
+    Otherwise, construct a new temporary fobj, populate it with the result of
+    create_default_data_fn, and then return that.
+
+    This is useful to apply default file objects to argparse.FileType command
+    line parameters.
 
     """
-    if args.user_data:
-        user_data_fobj = args.user_data
+    specified_fobj = getattr(args, key)
+    if specified_fobj:
+        return specified_fobj
     else:
-        user_data_fobj = StringIO.StringIO()
-        create_default_user_data(user_data_fobj, args)
-        user_data_fobj.seek(0)
-    return user_data_fobj
+        default_fobj = StringIO.StringIO()
+        create_default_data_fn(default_fobj, args)
+        default_fobj.seek(0)
+        return default_fobj
 
 
 def check_kvm_ok():
@@ -506,13 +514,18 @@ def main_create(parser, args):
         )
         return
 
-    user_data_fobj = main_create_get_user_data_fobj(args)
+    user_data_fobj = apply_default_fobj(
+        args, 'user_data', create_default_user_data
+    )
+    meta_data_fobj = apply_default_fobj(
+        args, 'meta_data', create_default_meta_data
+    )
     if args.backing_image_file:
         abs_image_backing_file = os.path.abspath(args.backing_image_file)
     else:
         abs_image_backing_file = None
     create(
-        args.hostname, args.filters, user_data_fobj,
+        args.hostname, args.filters, user_data_fobj, meta_data_fobj,
         backing_image_file=abs_image_backing_file,
         bridge=args.bridge,
         cpu=args.cpu,
@@ -656,6 +669,8 @@ def main(args):
     create_subparser.add_argument('--unsafe-caching', action='store_true')
     create_subparser.add_argument(
         '--user-data', type=argparse.FileType('rb'))
+    create_subparser.add_argument(
+        '--meta-data', type=argparse.FileType('rb'))
     create_subparser.add_argument('--password')
     create_subparser.add_argument('--log-console-output', action='store_true')
     create_subparser.add_argument('--backing-image-file')
