@@ -139,7 +139,7 @@ def purge_pool(conn=None):
     pool = uvtool.libvirt.get_libvirt_pool_object(conn, LIBVIRT_POOL_NAME)
     for volume_name in pool.listVolumes():
         volume = pool.storageVolLookupByName(volume_name)
-        volume.delete()
+        volume.delete(0)
 
 
 def clean_extraneous_images():
