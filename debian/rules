@@ -6,6 +6,7 @@
 override_dh_auto_build:
 	$(MAKE) -C uvtool/tests/streams
 	dh_auto_build
+	PYTHONPATH=$(CURDIR) python -m unittest uvtool.tests.test_kvm
 	PYTHONPATH=$(CURDIR) python -m unittest uvtool.tests.test_simplestreams
 
 override_dh_auto_clean:
