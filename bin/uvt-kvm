@@ -575,10 +575,13 @@ def main_ssh(parser, args, default_login_name='ubuntu'):
             "ssh access with host key verification is not implemented. " +
                 "Use --insecure iff you trust your network path to the guest."
         )
-    if not args.login_name and '@' in args.name:
+    if args.login_name:
+        login_name = args.login_name
+        name = args.name
+    elif '@' in args.name:
         login_name, name = args.name.split('@', 1)
     else:
-        login_name = args.login_name  # could be None
+        login_name = default_login_name
         name = args.name
 
     return ssh(name, login_name, args.ssh_arguments)
