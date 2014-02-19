@@ -639,11 +639,6 @@ class DeveloperOptionAction(argparse.Action):
 
 
 def main(args):
-    print(
-        "Warning: this CLI is experimental and may change.",
-        file=sys.stderr
-    )
-
     # Workaround for https://bugzilla.redhat.com/show_bug.cgi?id=1063766
     # (LP: #1228231)
     libvirt.registerErrorHandler(lambda _: None, None)
