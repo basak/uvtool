@@ -538,12 +538,6 @@ def main_destroy(parser, args):
         destroy(h)
 
 
-def main_import(parser, args):
-    with open(args.filename, 'rb') as f:
-        uvtool.libvirt.create_volume_from_fobj(
-            args.image_name, f, image_type='qcow2')
-
-
 def main_list(parser, args):
     # Hack for now. In time this should properly use the API and list
     # only instances created with this tool.
@@ -684,10 +678,6 @@ def main(args):
     destroy_subparser = subparsers.add_parser('destroy')
     destroy_subparser.set_defaults(func=main_destroy)
     destroy_subparser.add_argument('hostname', nargs='+')
-    import_subparser = subparsers.add_parser('import')
-    import_subparser.set_defaults(func=main_import)
-    import_subparser.add_argument('image_name')
-    import_subparser.add_argument('filename')
     list_subparser = subparsers.add_parser('list')
     list_subparser.set_defaults(func=main_list)
     ip_subparser = subparsers.add_parser('ip')
