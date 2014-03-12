@@ -1,0 +1,99 @@
+.TH uvt\-simplestreams\-libvirt 1 "2014-03-11" uvtool uvtool
+
+.SH NAME
+uvt-simplestreams-libvirt \- manage simplestreams images in libvirt
+
+.SH SYNOPSIS
+
+.SY uvt-simplestreams-libvirt\ sync
+.RB [ --no-authentication ]
+.OP --keyring keyring
+.OP --source source
+.OP --path path
+.RI [ filter
+.IR ... ]
+.YS
+
+.SY uvt-simplestreams-libvirt\ query
+.RI [ filter
+.IR ... ]
+.YS
+
+.SY uvt-simplestreams-libvirt\ purge
+.YS
+
+.SH DESCRIPTION
+
+.B uvt-simplestreams-libvirt
+maintains a libvirt volume storage pool as a local mirror of a subset
+of images available from a simplestreams source, such as Ubuntu cloud
+images.
+
+.B uvt-simplestreams-libvirt\ sync
+updates the local mirror with the latest version of each product
+available in the simplestreams source. Each
+.I filter
+restricts the set of images visible to the tool.
+
+.B uvt-simplestreams-libvirt\ query
+queries the local mirror. Each
+.I filter
+restricts the output.
+
+.B uvt-simplestreams-libvirt\ purge
+exists only for development and debugging purposes, and should not
+normally be used. It purges the entire libvirt volume storage pool and
+all metadata associated with it, breaking any existing VMs that use
+these volumes. This subcommand may disappear in the future.
+
+.SH OPTIONS
+
+.TP
+.B --no-authentication
+Do not authenticate the source. This is useful when you are using a
+local source, or can otherwise trust both the source and your network
+path to the source. It is insecure in other cases and should not be
+used.
+
+.TP
+.BI --keyring\  keyring
+Use the
+.BR gpg (1)
+.I keyring
+to authenticate the source. Default:
+.IR /usr/share/keyrings/ubuntu-cloudimage-keyring.gpg .
+
+.TP
+.BI --source\  source
+Use the
+.I source
+URL as the simplestreams source of product images to sync.
+
+.TP
+.BI --path\  path
+Pass
+.I path
+to the simplestreams library.
+
+.SH EXAMPLES
+
+.EX
+# Update uvtool's libvirt volume storage pool with all
+# current amd64 images.
+.B uvt-simplestreams-libvirt sync arch=amd64
+
+# Update uvtool's libvirt volume storage pool with the
+# latest amd64 Precise image
+.B uvt-simplestreams-libvirt sync release=precise arch=amd64
+
+# Update uvtool's libvirt volume storage pool with the
+# latest amd64 (development) trusty image
+.B uvt-simplestreams-libvirt sync \e
+.B \ \ \ \ \ \ \ \ --source http://cloud-images.ubuntu.com/daily \e
+.B \ \ \ \ \ \ \ \ release=trusty arch=amd64
+.EE
+
+.SH SEE ALSO
+
+.BR gpg (1),
+.BR uvt-kvm (1).
