@@ -115,10 +115,10 @@ def read_ssh_public_key_file(filename):
     except IOError as e:
         if e.errno != errno.ENOENT:
             raise
-        return None
+        return None, filename
     else:
         with f:
-            return f.read().strip().splitlines()
+            return f.read().strip().splitlines(), filename
 
 
 def get_ssh_authorized_keys(filename):
@@ -131,13 +131,13 @@ def get_ssh_authorized_keys(filename):
         # Fall back to reading the public key file.
 
     # Read the public key file if one is present.
-    file_keys = read_ssh_public_key_file(filename)
+    file_keys, filename_used = read_ssh_public_key_file(filename)
     if file_keys:
         return file_keys
     else:
         print(
             "Warning: %s not found; instance will be started "
-            "with no ssh access by default." % repr(filename),
+            "with no ssh access by default." % repr(filename_used),
             file=sys.stderr,
         )
         return []
