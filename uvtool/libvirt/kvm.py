@@ -460,7 +460,8 @@ def name_to_ips(name):
     ]
 
 
-def ssh(name, login_name, arguments, stdin=None, checked=False, sysexit=True):
+def ssh(name, login_name, arguments, stdin=None, checked=False, sysexit=True,
+        private_key_file=None):
     ips = name_to_ips(name)
     if len(ips) > 1:
         raise CLIError(
@@ -477,6 +478,8 @@ def ssh(name, login_name, arguments, stdin=None, checked=False, sysexit=True):
     ]
     if login_name:
         ssh_call.extend(['-l', login_name])
+    if private_key_file:
+        ssh_call.extend(['-i', private_key_file])
     ssh_call.append(ip)
     ssh_call.extend(arguments)
 
@@ -598,7 +601,8 @@ def main_wait_remote(parser, args):
                 '-'
             ],
             checked=True,
-            stdin=wait_script
+            stdin=wait_script,
+            private_key_file=args.ssh_private_key_file,
         )
 
 
@@ -629,7 +633,8 @@ def main_wait(parser, args):
             host_ip, args.interval, args.timeout):
         raise CLIError(
             "timed out waiting for ssh to open on %s." % host_ip)
-    main_wait_remote(parser, args)
+    if not args.without_ssh:
+        main_wait_remote(parser, args)
 
 
 class DeveloperOptionAction(argparse.Action):
@@ -692,6 +697,8 @@ def main(args):
         default=DEFAULT_REMOTE_WAIT_SCRIPT)
     wait_subparser.add_argument('--insecure', action='store_true')
     wait_subparser.add_argument('--remote-wait-user', default='ubuntu')
+    wait_subparser.add_argument('--without-ssh', action='store_true')
+    wait_subparser.add_argument('--ssh-private-key-file')
     wait_subparser.add_argument('name')
     args = parser.parse_args(args)
     args.func(parser, args)

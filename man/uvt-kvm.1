@@ -185,6 +185,23 @@ into the guest system as this user for the remote wait mechanism to work.
 Permit potentially insecure operations, which is currently required for
 the remote wait script to work. See COMMON OPTIONS, below.
 
+.TP
+.BI --ssh-private-key-file\  ssh_private_key_file
+Use
+.I ssh_private_key_file
+to authenticate to the guest machine when performing the
+.BR ssh (1)
+operation
+.
+
+.TP
+.B --without-ssh
+Skip the
+.BR ssh (1)
+operation. This will cause the command to exit with success as soon as the ssh
+port is available, but without logging to the guest to wait until it is ready
+internally.
+
 .SS ip
 .SY uvt-kvm\ ip
 .I name
