@@ -109,13 +109,11 @@ it is necessary to first run
 to download images before this subcommand will succeed. See EXAMPLES,
 below.
 
-If no filters are specified, filters of \fBrelease=\fIrelease\fR and
-\fBarch=\fIarch\fR are assumed, where
+If no filters are specified, a filter of \fBrelease=\fIrelease\fR
+is assumed, where
 .I release
-and
-.I arch
-correspond to the current LTS release and the host system architecture,
-respectively.
+corresponds to the current LTS release as returned by
+.BR distro-info (1).
 
 This subcommand supports an extensive set of options to modify the
 definition and behavior of the VM. See LIBVIRT DOMAIN DEFINTION OPTIONS,
@@ -577,5 +575,6 @@ manually to achieve the same effect.
 .SH SEE ALSO
 
 .BR uvt-simplestreams-libvirt (1),
+.BR distro-info (1),
 .BR dnsmasq (8),
 .BR virsh (1).
