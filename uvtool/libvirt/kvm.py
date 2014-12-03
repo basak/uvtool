@@ -24,6 +24,7 @@ from __future__ import unicode_literals
 
 import argparse
 import errno
+import functools
 import itertools
 import os
 import shutil
@@ -37,9 +38,10 @@ import yaml
 
 import libvirt
 from lxml import etree
-from lxml.builder import E
+from lxml.builder import E, ElementMaker
 
 import uvtool.libvirt
+from uvtool.libvirt import LIBVIRT_METADATA_XMLNS
 import uvtool.libvirt.simplestreams
 import uvtool.ssh
 import uvtool.wait
@@ -144,7 +146,7 @@ def get_ssh_authorized_keys(filename):
         return []
 
 
-def create_default_user_data(fobj, args):
+def create_default_user_data(fobj, args, ssh_host_keys=None):
     """Write some sensible default cloud-init user-data to the given file
     object.
 
@@ -158,6 +160,9 @@ def create_default_user_data(fobj, args):
         b'snappy': {b'enable_ssh': True},
         b'ssh_keys': uvtool.ssh.generate_ssh_host_keys()[0],
     }
+
+    if ssh_host_keys:
+        data[b'ssh_keys'] = ssh_host_keys
 
     if ssh_authorized_keys:
         data[b'ssh_authorized_keys'] = ssh_authorized_keys
@@ -260,7 +265,8 @@ def create_cow_volume_by_path(backing_volume_path, new_volume_name,
 
 
 def compose_domain_xml(name, volumes, cpu=1, memory=512, unsafe_caching=False,
-        template_path=DEFAULT_TEMPLATE, log_console_output=False, bridge=None):
+        template_path=DEFAULT_TEMPLATE, log_console_output=False, bridge=None,
+        ssh_known_hosts=None):
     tree = etree.parse(template_path)
     domain = tree.getroot()
     assert domain.tag == 'domain'
@@ -320,6 +326,17 @@ def compose_domain_xml(name, volumes, cpu=1, memory=512, unsafe_caching=False,
         etree.strip_elements(devices, 'serial')
         devices.append(E.serial(E.target(port='0'), type='stdio'))
 
+    if ssh_known_hosts:
+        metadata = domain.find('metadata')
+        if metadata is None:
+            metadata = E.metadata()
+            domain.append(metadata)
+        EX = ElementMaker(
+            namespace=LIBVIRT_METADATA_XMLNS,
+            nsmap={'uvt': LIBVIRT_METADATA_XMLNS}
+        )
+        metadata.append(EX.ssh_known_hosts(ssh_known_hosts))
+
     return etree.tostring(tree)
 
 
@@ -336,7 +353,8 @@ def get_base_image(filters):
 
 def create(hostname, filters, user_data_fobj, meta_data_fobj, memory=512,
            cpu=1, disk=2, unsafe_caching=False, template_path=DEFAULT_TEMPLATE,
-           log_console_output=False, bridge=None, backing_image_file=None):
+           log_console_output=False, bridge=None, backing_image_file=None,
+           ssh_known_hosts=None):
     if backing_image_file is None:
         base_volume_name = get_base_image(filters)
     undo_volume_creation = []
@@ -368,6 +386,7 @@ def create(hostname, filters, user_data_fobj, meta_data_fobj, memory=512,
             memory=memory,
             template_path=template_path,
             unsafe_caching=unsafe_caching,
+            ssh_known_hosts=ssh_known_hosts,
         )
         conn = libvirt.open('qemu:///system')
         domain = conn.defineXML(xml)
@@ -516,8 +535,13 @@ def main_create(parser, args):
         )
         return
 
+    ssh_host_keys, ssh_known_hosts = uvtool.ssh.generate_ssh_host_keys()
+
     user_data_fobj = apply_default_fobj(
-        args, 'user_data', create_default_user_data
+        args, 'user_data', functools.partial(
+            create_default_user_data,
+            ssh_host_keys=ssh_host_keys
+        )
     )
     meta_data_fobj = apply_default_fobj(
         args, 'meta_data', create_default_meta_data
@@ -536,6 +560,7 @@ def main_create(parser, args):
         memory=args.memory,
         template_path=args.template,
         unsafe_caching=args.unsafe_caching,
+        ssh_known_hosts=ssh_known_hosts,
     )
 
 

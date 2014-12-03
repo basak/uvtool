@@ -32,6 +32,9 @@ from lxml.builder import E
 
 LIBVIRT_DNSMASQ_LEASE_FILE = '/var/lib/libvirt/dnsmasq/default.leases'
 
+# The xmlns used for custom libvirt domain xml storage
+LIBVIRT_METADATA_XMLNS = 'https://launchpad.net/uvtool/libvirt/1'
+
 
 def get_libvirt_pool_object(libvirt_conn, pool_name):
     try:
