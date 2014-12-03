@@ -41,6 +41,7 @@ from lxml.builder import E
 
 import uvtool.libvirt
 import uvtool.libvirt.simplestreams
+import uvtool.ssh
 import uvtool.wait
 
 DEFAULT_TEMPLATE = '/usr/share/uvtool/libvirt/template.xml'
@@ -154,7 +155,8 @@ def create_default_user_data(fobj, args):
     data = {
         b'hostname': args.hostname.encode('ascii'),
         b'manage_etc_hosts': b'localhost',
-        b'snappy': {b'enable_ssh': True}
+        b'snappy': {b'enable_ssh': True},
+        b'ssh_keys': uvtool.ssh.generate_ssh_host_keys()[0],
     }
 
     if ssh_authorized_keys:

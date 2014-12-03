@@ -1,4 +1,5 @@
 uvtool/__init__.py
+uvtool/ssh.py
 uvtool/wait.py
 uvtool/libvirt/__init__.py
 uvtool/libvirt/kvm.py
