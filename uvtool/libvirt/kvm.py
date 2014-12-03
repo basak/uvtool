@@ -154,6 +154,7 @@ def create_default_user_data(fobj, args):
     data = {
         b'hostname': args.hostname.encode('ascii'),
         b'manage_etc_hosts': b'localhost',
+        b'snappy': {b'enable_ssh': True}
     }
 
     if ssh_authorized_keys:
