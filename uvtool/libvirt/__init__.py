@@ -247,3 +247,24 @@ def mac_to_ip(mac):
             if len(fields) > 1 and fields[1].lower() == canonical_mac:
                 return fields[2]
         return None
+
+
+def get_domain_ssh_known_hosts(domain_name, conn=None, prefix=None):
+    if conn is None:
+        conn = libvirt.open('qemu:///system')
+
+    domain = conn.lookupByName(domain_name)
+    xml = etree.fromstring(domain.XMLDesc(0))
+    element = xml.xpath(
+        '/domain/metadata/uvt:ssh_known_hosts',
+        namespaces={'uvt': LIBVIRT_METADATA_XMLNS}
+    )
+    if element:
+        if prefix:
+            return "\n".join(
+                [prefix + l for l in element[0].text.splitlines()]
+            )
+        else:
+            return element[0].text
+    else:
+        return None

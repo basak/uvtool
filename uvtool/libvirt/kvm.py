@@ -490,9 +490,6 @@ def name_to_ips(name):
 
 def ssh(name, login_name, arguments, stdin=None, checked=False, sysexit=True,
         private_key_file=None, insecure=False):
-    if not insecure:
-        raise InsecureError()
-
     ips = name_to_ips(name)
     if len(ips) > 1:
         raise CLIError(
@@ -501,29 +498,52 @@ def ssh(name, login_name, arguments, stdin=None, checked=False, sysexit=True,
         )
     ip = ips[0]
 
-    ssh_call = [
-        'ssh',
-        '-o', 'UserKnownHostsFile=/dev/null',
-        '-o', 'StrictHostKeyChecking=no',
-        '-o', 'CheckHostIP=no'
-    ]
-    if login_name:
-        ssh_call.extend(['-l', login_name])
-    if private_key_file:
-        ssh_call.extend(['-i', private_key_file])
-    ssh_call.append(ip)
-    ssh_call.extend(arguments)
+    objects_to_close = []
+    try:
+        ssh_call = [
+            'ssh',
+        ]
 
-    call = subprocess.check_call if checked else subprocess.call
+        ssh_known_hosts = uvtool.libvirt.get_domain_ssh_known_hosts(
+            name, prefix=('%s ' % ip)
+        )
+        if ssh_known_hosts:
+            ssh_known_hosts_file = tempfile.NamedTemporaryFile(
+                prefix='uvt-kvm.known_hoststmp')
+            objects_to_close.append(ssh_known_hosts_file)
+            ssh_known_hosts_file.write(ssh_known_hosts)
+            ssh_known_hosts_file.flush()
+            ssh_call.extend(
+                ['-o', 'UserKnownHostsFile=%s' % ssh_known_hosts_file.name]
+            )
+        else:
+            if not insecure:
+                raise InsecureError()
+            ssh_call.extend([
+                '-o', 'UserKnownHostsFile=/dev/null',
+                '-o', 'StrictHostKeyChecking=no',
+                '-o', 'CheckHostIP=no',
+            ])
 
-    result = call(
-        ssh_call, preexec_fn=subprocess_setup, close_fds=True, stdin=stdin
-    )
+        if login_name:
+            ssh_call.extend(['-l', login_name])
+        if private_key_file:
+            ssh_call.extend(['-i', private_key_file])
+        ssh_call.append(ip)
+        ssh_call.extend(arguments)
 
-    if sysexit:
-        sys.exit(result)
+        call = subprocess.check_call if checked else subprocess.call
 
-    return result
+        result = call(
+            ssh_call, preexec_fn=subprocess_setup, close_fds=True, stdin=stdin
+        )
+
+        if sysexit:
+            sys.exit(result)
+
+        return result
+    finally:
+        [x.close() for x in objects_to_close]
 
 
 def main_create(parser, args):
@@ -614,7 +634,7 @@ def main_ssh(parser, args, default_login_name='ubuntu'):
             name, login_name, args.ssh_arguments, insecure=args.insecure)
     except InsecureError:
         raise CLIError(
-            "ssh access with host key verification is not implemented. " +
+            "ssh public host key not found. " +
                 "Use --insecure iff you trust your network path to the guest."
         )
 
@@ -638,10 +658,9 @@ def main_wait_remote(parser, args):
                 insecure=args.insecure,
             )
         except InsecureError:
-            print(
-                "Warning: secure wait for boot-finished not yet implemented; "
-                    "use --insecure.",
-                file=sys.stderr
+            raise CLIError(
+                "ssh public host key not found. Use "
+                    "--insecure iff you trust your network path to the guest."
             )
 
 
