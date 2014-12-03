@@ -30,12 +30,14 @@ class TestKVM(unittest.TestCase):
         args.login_name = args_login_name
         args.name = args_hostname
         args.ssh_arguments = mock.sentinel.ssh_arguments
+        args.insecure = True
         with mock.patch('uvtool.libvirt.kvm.ssh') as ssh_mock:
             main_ssh(parser, args)
             ssh_mock.assert_called_with(
                 expected_hostname,
                 expected_login_name,
-                mock.sentinel.ssh_arguments
+                mock.sentinel.ssh_arguments,
+                insecure=True,
             )
 
     def test_ssh_default(self):

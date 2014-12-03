@@ -56,6 +56,12 @@ class CLIError(Exception):
     pass
 
 
+class InsecureError(RuntimeError):
+    """An insecure operation is required and the user did not permit it by
+    using --insecure."""
+    pass
+
+
 # From: http://www.chiark.greenend.org.uk/ucgi/~cjwatson/blosxom/2009-07-02-python-sigpipe.html
 def subprocess_setup():
     # Python installs a SIGPIPE handler by default. This is usually not what
@@ -483,7 +489,10 @@ def name_to_ips(name):
 
 
 def ssh(name, login_name, arguments, stdin=None, checked=False, sysexit=True,
-        private_key_file=None):
+        private_key_file=None, insecure=False):
+    if not insecure:
+        raise InsecureError()
+
     ips = name_to_ips(name)
     if len(ips) > 1:
         raise CLIError(
@@ -591,11 +600,6 @@ def main_ip(parser, args):
 
 
 def main_ssh(parser, args, default_login_name='ubuntu'):
-    if not args.insecure:
-        raise CLIError(
-            "ssh access with host key verification is not implemented. " +
-                "Use --insecure iff you trust your network path to the guest."
-        )
     if args.login_name:
         login_name = args.login_name
         name = args.name
@@ -605,33 +609,40 @@ def main_ssh(parser, args, default_login_name='ubuntu'):
         login_name = default_login_name
         name = args.name
 
-    return ssh(name, login_name, args.ssh_arguments)
+    try:
+        return ssh(
+            name, login_name, args.ssh_arguments, insecure=args.insecure)
+    except InsecureError:
+        raise CLIError(
+            "ssh access with host key verification is not implemented. " +
+                "Use --insecure iff you trust your network path to the guest."
+        )
 
 
 def main_wait_remote(parser, args):
-    if not args.insecure:
-        print(
-            "Warning: secure wait for boot-finished not yet implemented; "
-                "use --insecure.",
-            file=sys.stderr
-        )
-        return
-
     with open(args.remote_wait_script, 'rb') as wait_script:
-        ssh(
-            args.name,
-            args.remote_wait_user,
-            [
-                'env',
-                'UVTOOL_WAIT_INTERVAL=%s' % args.interval,
-                'UVTOOL_WAIT_TIMEOUT=%s' % args.timeout,
-                'sh',
-                '-'
-            ],
-            checked=True,
-            stdin=wait_script,
-            private_key_file=args.ssh_private_key_file,
-        )
+        try:
+            ssh(
+                args.name,
+                args.remote_wait_user,
+                [
+                    'env',
+                    'UVTOOL_WAIT_INTERVAL=%s' % args.interval,
+                    'UVTOOL_WAIT_TIMEOUT=%s' % args.timeout,
+                    'sh',
+                    '-'
+                ],
+                checked=True,
+                stdin=wait_script,
+                private_key_file=args.ssh_private_key_file,
+                insecure=args.insecure,
+            )
+        except InsecureError:
+            print(
+                "Warning: secure wait for boot-finished not yet implemented; "
+                    "use --insecure.",
+                file=sys.stderr
+            )
 
 
 def main_wait(parser, args):
